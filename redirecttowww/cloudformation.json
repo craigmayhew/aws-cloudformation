@@ -1,0 +1,422 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Generate a VPC, Security Groups, Apache Webserver, (For rediction to www subdomain).",
+    "Parameters"               : {
+        "ParamInstanceType" : {
+            "Description" : "WebServer EC2 instance type",
+            "Type"        : "String",
+            "Default"     : "m3.medium",
+            "AllowedValues" : [
+                "m3.medium",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge"
+            ],
+            "ConstraintDescription" : "must be a valid EC2 instance type."
+        }
+    },
+    "Mappings"                 : {
+        "AWSInstanceType2Arch" : {
+            "m3.medium" : {
+                "Arch" : "64"
+            },
+            "m4.large"  : {
+                "Arch" : "64"
+            },
+            "m4.xlarge" : {
+                "Arch" : "64"
+            },
+            "m4.2xlarge" : {
+                "Arch" : "64"
+            },
+            "c4.2xlarge"  : {
+                "Arch" : "64"
+            },
+            "c4.4xlarge" : {
+                "Arch" : "64"
+            }
+        },
+        "AWSRegionArch2AMI"    : {
+            "us-east-1" : {
+                "64" : "ami-6869aa05"
+            },
+            "eu-west-1" : {
+                "64" : "ami-f9dd458a"
+            }
+        }
+    },
+    "Resources"                : {
+        "wwwRedirectionPlatform" : {
+            "Type" : "AWS::EC2::VPC",
+            "Properties" : {
+                "CidrBlock" : "10.0.0.0/16",
+                "EnableDnsSupport" : "true",
+                "EnableDnsHostnames" : "true",
+                "InstanceTenancy"    : "default",
+                "Tags"               : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+                        "Key" : "Name",
+                        "Value" : {
+							"Ref" : "AWS::StackName"
+						}
+                    }
+                ]
+            }
+        },
+        "SubnetIdA"               : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : "eu-west-1a",
+                "CidrBlock"        : "10.0.0.0/24",
+                "MapPublicIpOnLaunch" : "true",
+                "Tags"                : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ],
+                "VpcId"               : {
+                    "Ref" : "wwwRedirectionPlatform"
+                }
+            }
+        },
+        "SubnetIdB"               : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : "eu-west-1b",
+                "CidrBlock"        : "10.0.1.0/24",
+                "MapPublicIpOnLaunch" : "true",
+                "Tags"                : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ],
+                "VpcId"               : {
+                    "Ref" : "wwwRedirectionPlatform"
+                }
+            }
+        },
+        "SubnetIdC"               : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : "eu-west-1c",
+                "CidrBlock"        : "10.0.2.0/24",
+                "MapPublicIpOnLaunch" : "true",
+                "Tags"                : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ],
+                "VpcId"               : {
+                    "Ref" : "wwwRedirectionPlatform"
+                }
+            }
+        },
+        "WebServerSecurityGroup"  : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Enable HTTP, HTTPS, SSH",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "80",
+                        "ToPort"     : "80",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "443",
+                        "ToPort"     : "443",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "22",
+                        "ToPort"     : "22",
+                        "CidrIp"     : "0.0.0.0/0"
+                    }
+                ],
+                "VpcId"                : {
+                    "Ref" : "wwwRedirectionPlatform"
+                }
+            }
+        },
+        "WaitHandle"              : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "WaitCondition"           : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "DependsOn" : "WebServer",
+            "Properties" : {
+                "Handle" : {
+                    "Ref" : "WaitHandle"
+                },
+                "Timeout" : "600"
+            }
+        },
+        "InternetGateway"         : {
+            "Type" : "AWS::EC2::InternetGateway",
+            "Properties" : {
+                "Tags" : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "AttachGateway"           : {
+            "DependsOn" : "InternetGateway",
+            "Type"      : "AWS::EC2::VPCGatewayAttachment",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "wwwRedirectionPlatform"
+                },
+                "InternetGatewayId" : {
+                    "Ref" : "InternetGateway"
+                }
+            }
+        },
+        "MyRouteTable"            : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "wwwRedirectionPlatform"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "Route"                   : {
+            "Type" : "AWS::EC2::Route",
+            "DependsOn" : [
+                "AttachGateway",
+                "MyRouteTable"
+            ],
+            "Properties" : {
+                "RouteTableId" : {
+                    "Ref" : "MyRouteTable"
+                },
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "GatewayId"            : {
+                    "Ref" : "InternetGateway"
+                }
+            }
+        },
+        "SubnetRouteTableAssociationA" : {
+            "DependsOn" : [
+                "SubnetIdA",
+                "MyRouteTable"
+            ],
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "SubnetIdA"
+                },
+                "RouteTableId" : {
+                    "Ref" : "MyRouteTable"
+                }
+            },
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "SubnetRouteTableAssociationB" : {
+            "DependsOn" : [
+                "SubnetIdB",
+                "MyRouteTable"
+            ],
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "SubnetIdB"
+                },
+                "RouteTableId" : {
+                    "Ref" : "MyRouteTable"
+                }
+            },
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "SubnetRouteTableAssociationC" : {
+            "DependsOn" : [
+                "SubnetIdC",
+                "MyRouteTable"
+            ],
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "SubnetIdC"
+                },
+                "RouteTableId" : {
+                    "Ref" : "MyRouteTable"
+                }
+            },
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "WebServer"                    : {
+			"DependsOn" : "EFSMountTargetA",
+            "Type" : "AWS::EC2::Instance",
+            "Metadata" : {
+                "Comment1" : "Configure the bootstrap helpers to install the Apache Web Server and PHP",
+                "Comment2" : "The website content is downloaded from the CloudFormationPHPSample.zip file",
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+						"files" : {
+						    "/etc/httpd/conf.d/welcome.conf" : {
+							    "mode" : "644",
+								"content" : { 
+								    "Fn::Join" : ["", [
+									    "Options +FollowSymLinks -MultiViews\n",
+										"RewriteEngine on\n",
+										"RewriteBase /\n",
+										"RewriteCond %{HTTP_HOST} !^www..*\n",
+										"RewriteCond %{HTTP_HOST} !^$\n",
+										"RewriteCond %{HTTP_HOST} ^([^.]*).(com|co\.uk|net|org)\n",
+										"RewriteRule ^.*$ http://www.%1.%2%{REQUEST_URI} [R=301,L]"
+									]]
+								 },
+							}
+						},
+						"packages" : {
+							"yum" : {
+								"command" : "httpd"
+							}
+                        },
+                        "services" : {
+                            "sysvinit" : {
+                                "httpd" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties" : {
+                "ImageId" : {
+                    "Fn::FindInMap" : [
+                        "AWSRegionArch2AMI",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap" : [
+                                "AWSInstanceType2Arch",
+                                {
+                                    "Ref" : "ParamInstanceType"
+                                },
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceType" : {
+                    "Ref" : "ParamInstanceType"
+                },
+                "NetworkInterfaces" : [
+                    {
+                        "GroupSet" : [
+                            {
+                                "Ref" : "WebServerSecurityGroup"
+                            }
+                        ],
+                        "AssociatePublicIpAddress" : "true",
+                        "DeviceIndex"              : "0",
+                        "DeleteOnTermination"      : "true",
+                        "SubnetId"                 : {
+                            "Ref" : "SubnetIdA"
+                        }
+                    }
+                ],
+                "Tags"              : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+							"Key" : "Name",
+							"Value" : {
+								"Ref" : "AWS::StackName"
+							}
+						}
+                ],
+                "UserData"          : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "#!/bin/bash -v\n",
+                                "yum update -y aws-cfn-bootstrap\n",
+                                "# Helper function\n",
+                                "function error_exit\n",
+                                "{\n",
+                                "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n",
+                                "  exit 1\n",
+                                "}\n",
+                                "# Install LAP packages\n",
+                                "/opt/aws/bin/cfn-init -s ",
+                                {
+                                    "Ref" : "AWS::StackId"
+                                },
+                                " -r WebServer --region ",
+                                {
+                                    "Ref" : "AWS::Region"
+                                },
+                                " || error_exit 'Failed to run cfn-init'\n",
+                                "# All is well so signal success\n",
+                                "/opt/aws/bin/cfn-signal -e 0 -r \"LAP Stack setup complete\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "Outputs"                  : {
+        "WebsiteURL" : {
+            "Value" : {
+                "Fn::Join" : [
+                    "",
+                    [
+                        "http://",
+                        {
+                            "Fn::GetAtt" : [
+                                "WebServer",
+                                "PublicDnsName"
+                            ]
+                        }
+                    ]
+                ]
+            },
+            "Description" : "URL for newly created http www redirector service"
+        }
+    }
+}
