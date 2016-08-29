@@ -1,4 +1,5 @@
 # aws webhosting platform
+eu-west-1 hosted web service across 3 availibility zones. Takes ~10 mins from cloudfront create event starting to serving traffic.
 
 ## locations
 - /etc/httpd/conf.d
