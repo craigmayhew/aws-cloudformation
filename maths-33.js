@@ -17,7 +17,7 @@ BigNumber = function(n, p, r){
     for(i = (n = o._d = (n.join('') || '0').split('')).length; i; n[--i] = +n[i]);
     o.round();
 };
-						
+
 with({$: BigNumber, o: BigNumber.prototype}){
     $.ROUND_HALF_EVEN = ($.ROUND_HALF_DOWN = ($.ROUND_HALF_UP = ($.ROUND_FLOOR = ($.ROUND_CEIL = ($.ROUND_DOWN = ($.ROUND_UP = 0) + 1) + 1) + 1) + 1) + 1) + 1;
     $.defaultPrecision = 40;
@@ -98,7 +98,7 @@ with({$: BigNumber, o: BigNumber.prototype}){
         return delete this._rounding, this;
     };
 }
-						
+
 exports.handler = function(event, context) {
   function sendEmail(subject, msg){
     var ses = new AWS.SES({apiVersion: '2010-12-01'});
