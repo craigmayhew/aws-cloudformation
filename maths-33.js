@@ -1,8 +1,8 @@
 var aws = require('aws-sdk');
-                        
-/*+ Jonas Raoni Soares Silva*/
-/*@ http://jsfromhell.com/classes/bignumber [rev. #4]*/
-                        
+
+/* Jonas Raoni Soares Silva
+ * http://jsfromhell.com/classes/bignumber [rev. #4]*/
+
 BigNumber = function(n, p, r){
     var o = this, i;
     if(n instanceof BigNumber){
@@ -56,7 +56,7 @@ with({$: BigNumber, o: BigNumber.prototype}){
             for(s = (new Array(lb - --i)).join('0').split(''), r = 0, j = la; j; r += a[--j] * b[i], s.unshift(r % 10), r = (r / 10) >>> 0);
         return o._s = o._s != n._s, o._f = ((r = la + lb - o._f - n._f) >= (j = (o._d = x._d).length) ? this._zeroes(o._d, r - j + 1, 1).length : j) - r, o.round();
     };
-                        
+    
     o.set = function(n){
         return this.constructor(n), this;
     };
@@ -100,82 +100,65 @@ with({$: BigNumber, o: BigNumber.prototype}){
 }
 
 exports.handler = function(event, context) {
-  function sendEmail(subject, msg){
+  function sendEmail(msg){
     var ses = new AWS.SES({apiVersion: '2010-12-01'});
-    var emailRecipient = ['admin@adire.co.uk'];
-    var details = [];
-        
-    var body = '\n\n\n' + msg;
                         
-    var joy = ses.sendEmail({
+    var e = ses.sendEmail({
       Source: 'admin@adire.co.uk',
-      Destination: { ToAddresses: emailRecipient },
+      Destination: { ToAddresses: ['admin@adire.co.uk'] },
       Message: {
         Subject: {
-          Data: subject
+          Data: '33 solved'
         },
         Body: {
           Text: {
-            Data: body
+            Data: '\n' + msg
           }
         }
       }
-    }, function(err, data) {
-      if(err) {
-        //console.log(err);
-      } else {
-        //console.log(null);
-      }
     });
-    //console.log(joy.response);
   }
-                        
+  
   var negativeABCs = [], positiveABCs = [], i = 0, n;
-  var negLen = 100, posLen = 100;
-  var max = 3;//10 would mean largest ints of 1000 +- 1000 +- 1000 = answer
-                        
+  var negLen = 100, posLen = 100, max = 3;//10 would mean largest ints of 1000 +- 1000 +- 1000 = answer
+  
   for (var i = 0; i < negLen; i++) {
       n = new BigNumber('-' + Math.floor((Math.random() * max) + 1));
       negativeABCs[i] = n.multiply(n).multiply(n);
   }
-                        
+  
   for (var i = 0; i < posLen; i++) {
       n = new BigNumber('' + Math.floor((Math.random() * max) + 1));
       positiveABCs[i] = n.multiply(n).multiply(n);
   }
-                        
-  var counter = 0;
-  for (var a = 0; a < negLen; a++) {
+  
+  var cntr = 0;
+  for (var z = 0; z < negLen; z++) {
       for (var b = 0; b < posLen; b++) {
-          var firstTwo = negativeABCs[a].add(positiveABCs[b]);
-                        
+          var firstTwo = negativeABCs[z].add(positiveABCs[b]);
+          
           if(((firstTwo+'').charAt(0)) !== '-'){
               //skip a loop of c because there is no way that c when added to positive int is going to = 33
-              counter += posLen;
+              cntr += posLen;
               continue;
           }
-                        
+          
           for (var c = 0; c < posLen; c++) {
-                        
-              counter++;
-                        
+              cntr++;
               var answer = firstTwo.add(positiveABCs[c]);
-                        
+              
               if(answer == '3'){
-                  var msg = negativeABCs[a] + ' ' + positiveABCs[b] + ' ' + positiveABCs[c] + ' = ' + answer;
+                  var msg = negativeABCs[z] + ' ' + positiveABCs[b] + ' ' + positiveABCs[c] + ' = ' + answer;
                   console.log(msg);
                   sendEmail('solved!' + msg);
               }
-                        
-                        
+              
               //every last ms of paid compute time please
               if(context.getRemainingTimeInMillis() < 5){
-                  console.log(context.getRemainingTimeInMillis());
-                  context.succeed({success:counter + ' attempts'});
-                  return true;
+                  context.succeed({success:cntr + ' attempts'});
               }
           }
       }
   }
-  context.succeed({success:counter + ' attempts'});
+  context.succeed({success:cntr + ' attempts'});
 }
