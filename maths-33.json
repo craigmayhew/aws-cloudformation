@@ -1,7 +1,13 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
   "Description"   : "Generate aws lambda(s) to run and attempt to solve the 33 problem. a^3 + b^3 + c^3 = 33",
-
+  "Parameters"               : {
+        "ParamAnswer" : {
+            "Description" : "a^3 + b^3 + c^3 = ?",
+            "Type"        : "String",
+            "Default"     : "33"
+        }
+  },
   "Resources"     : {
     "lambdaFunction" : {
       "Type" : "AWS::Lambda::Function",
@@ -25,7 +31,9 @@
 "var negativeABCs=[],positiveABCs=[],i=0,n;var negLen=100,posLen=100,max=3;for(var i=0;i<negLen;i++){n=new BigNumber('-'+Math.floor((Math.random()*max)+1));negativeABCs[i]=n.multiply(n).multiply(n);}",
 "for(var i=0;i<posLen;i++){n=new BigNumber(''+Math.floor((Math.random()*max)+1));positiveABCs[i]=n.multiply(n).multiply(n);}",
 "var cntr=0;for(var z=0;z<negLen;z++){for(var b=0;b<posLen;b++){var firstTwo=negativeABCs[z].add(positiveABCs[b]);if(((firstTwo+'').charAt(0))!=='-'){cntr+=posLen;continue;}",
-"for(var c=0;c<posLen;c++){cntr++;var answer=firstTwo.add(positiveABCs[c]);if(answer=='3'){var msg=negativeABCs[z]+' '+positiveABCs[b]+' '+positiveABCs[c]+' = '+answer;console.log(msg);sendEmail('solved!'+msg);}",
+"for(var c=0;c<posLen;c++){cntr++;var answer=firstTwo.add(positiveABCs[c]);if(answer=='",
+{"Ref" : "ParamAnswer"},
+"'){sendEmail(negativeABCs[z]+' '+positiveABCs[b]+' '+positiveABCs[c]+' = '+answer);}",
 "if(context.getRemainingTimeInMillis()<5){context.succeed({success:cntr+' attempts'});}}}}",
 "context.succeed({success:cntr+' attempts'});}"
 				]]
