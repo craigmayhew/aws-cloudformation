@@ -1,14 +1,13 @@
 var aws = require('aws-sdk');
 
-/* Jonas Raoni Soares Silva
- * http://jsfromhell.com/classes/bignumber [rev. #4]*/
+//Jonas Raoni Soares Silva
+//http://jsfromhell.com/classes/bignumber [rev. #4]
 
 BigNumber = function(n, p, r){
     var o = this, i;
     if(n instanceof BigNumber){
         for(i in {precision: 0, roundType: 0, _s: 0, _f: 0}) o[i] = n[i];
         o._d = n._d.slice();
-        return;
     }
     o.precision = isNaN(p = Math.abs(p)) ? BigNumber.defaultPrecision : p;
     o.roundType = isNaN(r = Math.abs(r)) ? BigNumber.defaultRoundType : r;
@@ -102,25 +101,23 @@ with({$: BigNumber, o: BigNumber.prototype}){
 exports.handler = function(event, context) {
   function sendEmail(msg){
     var ses = new AWS.SES({apiVersion: '2010-12-01'});
-                        
     var e = ses.sendEmail({
-      Source: 'admin@adire.co.uk',
-      Destination: { ToAddresses: ['admin@adire.co.uk'] },
+      Source: 'fake@example.com',
+      Destination: { ToAddresses: ['fake@example.com'] },
       Message: {
         Subject: {
           Data: '33 solved'
         },
         Body: {
           Text: {
-            Data: '\n' + msg
+            Data: msg
           }
         }
       }
     });
   }
   
-  var negativeABCs = [], positiveABCs = [], i = 0, n;
-  var negLen = 100, posLen = 100, max = 3;//10 would mean largest ints of 1000 +- 1000 +- 1000 = answer
+  var negativeABCs = [], positiveABCs = [], i = 0, n, negLen = 100, posLen = 100, max = 3;//10 would mean largest ints of 1000 +- 1000 +- 1000 = answer
   
   for (var i = 0; i < negLen; i++) {
       n = new BigNumber('-' + Math.floor((Math.random() * max) + 1));
@@ -149,7 +146,6 @@ exports.handler = function(event, context) {
               
               if(answer == '3'){
                   var msg = negativeABCs[z] + ' ' + positiveABCs[b] + ' ' + positiveABCs[c] + ' = ' + answer;
-                  console.log(msg);
                   sendEmail('solved!' + msg);
               }
               
