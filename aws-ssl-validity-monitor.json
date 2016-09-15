@@ -6,6 +6,11 @@
             "Description" : "comma separated list of domains to check SSL valididty",
             "Type"        : "CommaDelimitedList",
             "Default"     : "player2store.com,secure.adire.co.uk,take-a-way.co.uk,thelabelman.co.uk"
+        },
+		"ParamEmail" : {
+            "Description" : "Email to send alerts to",
+            "Type"        : "String",
+            "Default"     : "test@test.com"
         }
   },
   "Resources"     : {
@@ -19,7 +24,7 @@
                 
                 "exports.handler = function(event, context) {",
                 
-				{"Fn::Join": ["", ["  var inputUrls = ", {"Fn::Join": ["", {"Ref":"ParamURLs"}]} ,";"]]},
+				{"Fn::Join": ["", ["  var inputUrls = ['", {"Fn::Join": ["','", {"Ref":"ParamURLs"}]} ,"'];"]]},
                 "  var aOptions = [];",
 				"  for (var i = 0; i < inputUrls.length; i++) {",
 				"      var aOptions = [{",
@@ -37,12 +42,13 @@
                 "  function sendEmail(msg){",
                 "    var ses = new aws.SES({apiVersion: '2010-12-01'});",
                 "    var emailRecipient = ['admin@adire.co.uk'];",
+				     {"Fn::Join": ["", ["var emailRecipient = '[", {"Ref":"ParamEmail"} ,"'];"]]},
                 "    var details = [];",
                 "        ",
                 "    var body = msg;",
                 
                 "    var joy = ses.sendEmail({",
-                "      Source: 'admin@adire.co.uk',",
+				       {"Fn::Join": ["", ["Source: '", {"Ref":"ParamEmail"} ,"',"]]},
                 "      Destination: { ToAddresses: emailRecipient },",
                 "      Message: {",
                 "        Subject: {",
