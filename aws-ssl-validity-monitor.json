@@ -42,7 +42,7 @@
                 "  function sendEmail(msg){",
                 "    var ses = new aws.SES({apiVersion: '2010-12-01'});",
                 "    var emailRecipient = ['admin@adire.co.uk'];",
-                     {"Fn::Join": ["", ["var emailRecipient = '[", {"Ref":"ParamEmail"} ,"'];"]]},
+                     {"Fn::Join": ["", ["var emailRecipient = ['", {"Ref":"ParamEmail"} ,"'];"]]},
                 "    var details = [];",
                 "        ",
                 "    var body = msg;",
