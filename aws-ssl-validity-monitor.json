@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
-  "Description"   : "Generate aws lambda(s) to run and attempt to solve the 33 problem. a^3 + b^3 + c^3 = 33",
+  "Description"   : "Generate aws lambda to check urls SSL validity",
   "Parameters"               : {
         "ParamURLs" : {
             "Description" : "comma separated list of domains to check SSL valididty",
