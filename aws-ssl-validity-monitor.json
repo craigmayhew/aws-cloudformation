@@ -7,7 +7,7 @@
             "Type"        : "CommaDelimitedList",
             "Default"     : "player2store.com,secure.adire.co.uk,take-a-way.co.uk,thelabelman.co.uk"
         },
-		"ParamEmail" : {
+        "ParamEmail" : {
             "Description" : "Email to send alerts to",
             "Type"        : "String",
             "Default"     : "test@test.com"
@@ -24,10 +24,10 @@
                 
                 "exports.handler = function(event, context) {",
                 
-				{"Fn::Join": ["", ["  var inputUrls = ['", {"Fn::Join": ["','", {"Ref":"ParamURLs"}]} ,"'];"]]},
+                {"Fn::Join": ["", ["  var inputUrls = ['", {"Fn::Join": ["','", {"Ref":"ParamURLs"}]} ,"'];"]]},
                 "  var aOptions = [];",
-				"  for (var i = 0; i < inputUrls.length; i++) {",
-				"      var aOptions = [{",
+                "  for (var i = 0; i < inputUrls.length; i++) {",
+                "      var aOptions = [{",
                 "                       host: inputUrls[i],",
                 "                       method: 'get',",
                 "                       path: '/'",
@@ -42,13 +42,13 @@
                 "  function sendEmail(msg){",
                 "    var ses = new aws.SES({apiVersion: '2010-12-01'});",
                 "    var emailRecipient = ['admin@adire.co.uk'];",
-				     {"Fn::Join": ["", ["var emailRecipient = '[", {"Ref":"ParamEmail"} ,"'];"]]},
+                     {"Fn::Join": ["", ["var emailRecipient = '[", {"Ref":"ParamEmail"} ,"'];"]]},
                 "    var details = [];",
                 "        ",
                 "    var body = msg;",
                 
                 "    var joy = ses.sendEmail({",
-				       {"Fn::Join": ["", ["Source: '", {"Ref":"ParamEmail"} ,"',"]]},
+                       {"Fn::Join": ["", ["Source: '", {"Ref":"ParamEmail"} ,"',"]]},
                 "      Destination: { ToAddresses: emailRecipient },",
                 "      Message: {",
                 "        Subject: {",
@@ -106,7 +106,7 @@
                 "      req.end();",
                 "  }",
                 "}"
-				    ]]
+                    ]]
             }
         },
         "Description" : "Check SSL certificates are valid",
@@ -118,7 +118,7 @@
         "Timeout" : 1
       }
     },
-	"LambdaExecutionRole": {
+    "LambdaExecutionRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -135,26 +135,26 @@
         }]
       }
     },
-	"ScheduledRule": {
-	  "Type": "AWS::Events::Rule",
-	  "Properties": {
-		"Description": "ScheduledRule",
-		"ScheduleExpression": "rate(24 hours)",
-		"State": "ENABLED",
-		"Targets": [{
-		  "Arn": { "Fn::GetAtt": ["LambdaFunction", "Arn"] },
-		  "Id": "TargetFunctionV1"
-		}]
-	  }
-	},
-	"PermissionForEventsToInvokeLambda": {
-	  "Type": "AWS::Lambda::Permission",
-	  "Properties": {
-		"FunctionName": { "Ref": "LambdaFunction" },
-		"Action": "lambda:InvokeFunction",
-		"Principal": "events.amazonaws.com",
-		"SourceArn": { "Fn::GetAtt": ["ScheduledRule", "Arn"] }
-	  }
-	}
+    "ScheduledRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Description": "ScheduledRule",
+        "ScheduleExpression": "rate(24 hours)",
+        "State": "ENABLED",
+        "Targets": [{
+          "Arn": { "Fn::GetAtt": ["LambdaFunction", "Arn"] },
+          "Id": "TargetFunctionV1"
+        }]
+      }
+    },
+    "PermissionForEventsToInvokeLambda": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": { "Ref": "LambdaFunction" },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": { "Fn::GetAtt": ["ScheduledRule", "Arn"] }
+      }
+    }
   }
 }
