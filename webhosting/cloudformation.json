@@ -921,7 +921,7 @@
                                 "mode": "000600", 
                                 "owner": "root"
                             },
-                            "/home/root/efs-backup.php": {
+                            "/root/efs-backup.php": {
                                 "mode" : "600",
                                 "content": {
                                     "Fn::Join" : [
