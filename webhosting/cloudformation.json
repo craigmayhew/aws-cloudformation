@@ -69,31 +69,31 @@
         }
     },
     "Resources"                : {
-		"ElasticLoadBalancer" : {
-		  "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
-		  "DependsOn": [ "WebServerA", "WebServerB", "WebServerC" ],
-		  "Properties" : {
-			"Subnets" : [ { "Ref" : "SubnetIdA" },{ "Ref" : "SubnetIdB" },{ "Ref" : "SubnetIdC" } ],
-			"Instances" : [ { "Ref" : "WebServerA" },{ "Ref" : "WebServerB" },{ "Ref" : "WebServerC" } ],
-			"Listeners": [{
-			  "LoadBalancerPort": "80",
-			  "InstancePort": "80",
-			  "Protocol": "HTTP"
-			}],
-			"HealthCheck": {
-			  "Target": "HTTP:80/",
-			  "HealthyThreshold": "3",
-			  "UnhealthyThreshold": "5",
-			  "Interval": "30",
-			  "Timeout": "5"
-			},
-			"ConnectionDrainingPolicy": {
-			  "Enabled" : "true",
-			  "Timeout" : "60"
-			},
-		    "SecurityGroups": [ { "Ref" : "WebServerSecurityGroup" } ]
-		  }
-		},
+        "ElasticLoadBalancer" : {
+          "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+          "DependsOn": [ "WebServerA", "WebServerB", "WebServerC" ],
+          "Properties" : {
+            "Subnets" : [ { "Ref" : "SubnetIdA" },{ "Ref" : "SubnetIdB" },{ "Ref" : "SubnetIdC" } ],
+            "Instances" : [ { "Ref" : "WebServerA" },{ "Ref" : "WebServerB" },{ "Ref" : "WebServerC" } ],
+            "Listeners": [{
+              "LoadBalancerPort": "80",
+              "InstancePort": "80",
+              "Protocol": "HTTP"
+            }],
+            "HealthCheck": {
+              "Target": "HTTP:80/",
+              "HealthyThreshold": "3",
+              "UnhealthyThreshold": "5",
+              "Interval": "30",
+              "Timeout": "5"
+            },
+            "ConnectionDrainingPolicy": {
+              "Enabled" : "true",
+              "Timeout" : "60"
+            },
+            "SecurityGroups": [ { "Ref" : "WebServerSecurityGroup" } ]
+          }
+        },
         "adireWebhostingPlatform" : {
             "Type" : "AWS::EC2::VPC",
             "Properties" : {
@@ -110,8 +110,8 @@
                     },{
                         "Key" : "Name",
                         "Value" : {
-							"Ref" : "AWS::StackName"
-						}
+                            "Ref" : "AWS::StackName"
+                        }
                     }
                 ]
             }
@@ -214,8 +214,8 @@
                     },{
                         "Key" : "Name",
                         "Value" : {
-							"Ref" : "AWS::StackName"
-						}
+                            "Ref" : "AWS::StackName"
+                        }
                     }
                 ]
             }
@@ -376,7 +376,7 @@
                     "Ref" : "MyRouteTable"
                 }
             },
-			"Type" : "AWS::EC2::SubnetRouteTableAssociation"
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
         },
         "SubnetRouteTableAssociationB" : {
             "DependsOn" : [
@@ -391,7 +391,7 @@
                     "Ref" : "MyRouteTable"
                 }
             },
-			"Type" : "AWS::EC2::SubnetRouteTableAssociation"
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
         },
         "SubnetRouteTableAssociationC" : {
             "DependsOn" : [
@@ -406,53 +406,53 @@
                     "Ref" : "MyRouteTable"
                 }
             },
-			"Type" : "AWS::EC2::SubnetRouteTableAssociation"
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
         },
         "WebServerA"                    : {
-			"DependsOn" : [ "EFSMountTargetA", "CandCServer", "EFSMountTargetA"],
+            "DependsOn" : [ "EFSMountTargetA", "CandCServer", "EFSMountTargetA"],
             "Type" : "AWS::EC2::Instance",
             "Metadata" : {
                 "AWS::CloudFormation::Init" : {
                     "config" : {
-						"packages" : {
-							"yum" : {
-								"php70": []
-							}
+                        "packages" : {
+                            "yum" : {
+                                "php70": []
+                            }
                         },
                         "sources"  : {
                             "/etc/httpd/conf.d" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
                         },
-						"commands" : {
-							"01_mount" : {
-								"command" : {
-									"Fn::Join" : [
-										"",
-										[
-											"mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
-											{
-												"Ref" : "WebServerEFSFileSystem"
-											},
-											".efs.",
-											{
-												"Ref" : "AWS::Region"
-											},
-											".amazonaws.com:/ ",
-											{
-												"Ref" : "ParamWebDirMountPoint"
-											}
-										]
-									]
-								}
-							},
-							"04_delete_default_httpd_configs" : {
-								"command" : "rm -f /etc/httpd/conf.d/autoindex.conf ; rm -f /etc/httpd/conf.d/notrace.conf ; rm -f /etc/httpd/conf.d/php.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README ; rm -f /etc/httpd/conf.d/userdir.conf ; rm -f /etc/httpd/conf.d/welcome.conf"
-							},
-							"05_permisiions" : {
-								"command" : "chmod -R 644 /etc/httpd/conf.d/"
-							},
-							"06_packages" : {
-								"command" : "yum -y update"
-							}
+                        "commands" : {
+                            "01_mount" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
+                                            {
+                                                "Ref" : "WebServerEFSFileSystem"
+                                            },
+                                            ".efs.",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            ".amazonaws.com:/ ",
+                                            {
+                                                "Ref" : "ParamWebDirMountPoint"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "04_delete_default_httpd_configs" : {
+                                "command" : "rm -f /etc/httpd/conf.d/autoindex.conf ; rm -f /etc/httpd/conf.d/notrace.conf ; rm -f /etc/httpd/conf.d/php.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README ; rm -f /etc/httpd/conf.d/userdir.conf ; rm -f /etc/httpd/conf.d/welcome.conf"
+                            },
+                            "05_permisiions" : {
+                                "command" : "chmod -R 644 /etc/httpd/conf.d/"
+                            },
+                            "06_packages" : {
+                                "command" : "yum -y update"
+                            }
                         },
                         "services" : {
                             "sysvinit" : {
@@ -474,7 +474,7 @@
                 }
             },
             "Properties" : {
-				"AvailabilityZone" : "eu-west-1a",
+                "AvailabilityZone" : "eu-west-1a",
                 "ImageId" : {
                     "Fn::FindInMap" : [
                         "AWSRegionArch2AMI",
@@ -516,11 +516,11 @@
                             "Ref" : "AWS::StackName"
                         }
                     },{
-							"Key" : "Name",
-							"Value" : {
-								"Ref" : "AWS::StackName"
-							}
-						}
+                            "Key" : "Name",
+                            "Value" : {
+                                "Ref" : "AWS::StackName"
+                            }
+                        }
                 ],
                 "UserData"          : {
                     "Fn::Base64" : {
@@ -529,8 +529,8 @@
                             [
                                 "#!/bin/bash -v\n",
                                 "yum update -y aws-cfn-bootstrap\n",
-								"# nfs-utils is used by EFS mount command\n",
-								"yum install -y nfs-utils\n",
+                                "# nfs-utils is used by EFS mount command\n",
+                                "yum install -y nfs-utils\n",
                                 "# Helper function\n",
                                 "function error_exit\n",
                                 "{\n",
@@ -564,51 +564,51 @@
                 }
             }
         },
-		"WebServerB"                    : {
-			"DependsOn" : [ "EFSMountTargetB", "CandCServer", "EFSMountTargetB" ],
+        "WebServerB"                    : {
+            "DependsOn" : [ "EFSMountTargetB", "CandCServer", "EFSMountTargetB" ],
             "Type" : "AWS::EC2::Instance",
             "Metadata" : {
                 "AWS::CloudFormation::Init" : {
                     "config" : {
-						"packages" : {
-							"yum" : {
-								"php70": []
-							}
+                        "packages" : {
+                            "yum" : {
+                                "php70": []
+                            }
                         },
                         "sources"  : {
                             "/etc/httpd/conf.d" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
                         },
-						"commands" : {
-							"01_mount" : {
-								"command" : {
-									"Fn::Join" : [
-										"",
-										[
-											"mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
-											{
-												"Ref" : "WebServerEFSFileSystem"
-											},
-											".efs.",
-											{
-												"Ref" : "AWS::Region"
-											},
-											".amazonaws.com:/ ",
-											{
-												"Ref" : "ParamWebDirMountPoint"
-											}
-										]
-									]
-								}
-							},
-							"04_delete_default_httpd_configs" : {
-								"command" : "rm -f /etc/httpd/conf.d/autoindex.conf ; rm -f /etc/httpd/conf.d/notrace.conf ; rm -f /etc/httpd/conf.d/php.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README ; rm -f /etc/httpd/conf.d/userdir.conf ; rm -f /etc/httpd/conf.d/welcome.conf"
-							},
-							"05_permisiions" : {
-								"command" : "chmod -R 644 /etc/httpd/conf.d/"
-							},
-							"06_packages" : {
-								"command" : "yum -y update"
-							}
+                        "commands" : {
+                            "01_mount" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
+                                            {
+                                                "Ref" : "WebServerEFSFileSystem"
+                                            },
+                                            ".efs.",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            ".amazonaws.com:/ ",
+                                            {
+                                                "Ref" : "ParamWebDirMountPoint"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "04_delete_default_httpd_configs" : {
+                                "command" : "rm -f /etc/httpd/conf.d/autoindex.conf ; rm -f /etc/httpd/conf.d/notrace.conf ; rm -f /etc/httpd/conf.d/php.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README ; rm -f /etc/httpd/conf.d/userdir.conf ; rm -f /etc/httpd/conf.d/welcome.conf"
+                            },
+                            "05_permisiions" : {
+                                "command" : "chmod -R 644 /etc/httpd/conf.d/"
+                            },
+                            "06_packages" : {
+                                "command" : "yum -y update"
+                            }
                         },
                         "services" : {
                             "sysvinit" : {
@@ -630,7 +630,7 @@
                 }
             },
             "Properties" : {
-				"AvailabilityZone" : "eu-west-1b",
+                "AvailabilityZone" : "eu-west-1b",
                 "ImageId" : {
                     "Fn::FindInMap" : [
                         "AWSRegionArch2AMI",
@@ -672,11 +672,11 @@
                             "Ref" : "AWS::StackName"
                         }
                     },{
-						"Key" : "Name",
-						"Value" : {
-							"Ref" : "AWS::StackName"
-						}
-					}
+                        "Key" : "Name",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
                 ],
                 "UserData"          : {
                     "Fn::Base64" : {
@@ -685,8 +685,8 @@
                             [
                                 "#!/bin/bash -v\n",
                                 "yum update -y aws-cfn-bootstrap\n",
-								"# nfs-utils is used by EFS mount command\n",
-								"yum install -y nfs-utils\n",
+                                "# nfs-utils is used by EFS mount command\n",
+                                "yum install -y nfs-utils\n",
                                 "# Helper function\n",
                                 "function error_exit\n",
                                 "{\n",
@@ -720,51 +720,51 @@
                 }
             }
         },
-		"WebServerC"                    : {
-			"DependsOn" : [ "EFSMountTargetC", "CandCServer", "EFSMountTargetC" ],
+        "WebServerC"                    : {
+            "DependsOn" : [ "EFSMountTargetC", "CandCServer", "EFSMountTargetC" ],
             "Type" : "AWS::EC2::Instance",
             "Metadata" : {
                 "AWS::CloudFormation::Init" : {
                     "config" : {
-						"packages" : {
-							"yum" : {
-								"php70": []
-							}
+                        "packages" : {
+                            "yum" : {
+                                "php70": []
+                            }
                         },
                         "sources"  : {
                             "/etc/httpd/conf.d" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
                         },
-						"commands" : {
-							"01_mount" : {
-								"command" : {
-									"Fn::Join" : [
-										"",
-										[
-											"mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
-											{
-												"Ref" : "WebServerEFSFileSystem"
-											},
-											".efs.",
-											{
-												"Ref" : "AWS::Region"
-											},
-											".amazonaws.com:/ ",
-											{
-												"Ref" : "ParamWebDirMountPoint"
-											}
-										]
-									]
-								}
-							},
-							"04_delete_default_httpd_configs" : {
-								"command" : "rm -f /etc/httpd/conf.d/autoindex.conf ; rm -f /etc/httpd/conf.d/notrace.conf ; rm -f /etc/httpd/conf.d/php.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README ; rm -f /etc/httpd/conf.d/userdir.conf ; rm -f /etc/httpd/conf.d/welcome.conf"
-							},
-							"05_permisiions" : {
-								"command" : "chmod -R 644 /etc/httpd/conf.d/"
-							},
-							"06_packages" : {
-								"command" : "yum -y update"
-							}
+                        "commands" : {
+                            "01_mount" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
+                                            {
+                                                "Ref" : "WebServerEFSFileSystem"
+                                            },
+                                            ".efs.",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            ".amazonaws.com:/ ",
+                                            {
+                                                "Ref" : "ParamWebDirMountPoint"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "04_delete_default_httpd_configs" : {
+                                "command" : "rm -f /etc/httpd/conf.d/autoindex.conf ; rm -f /etc/httpd/conf.d/notrace.conf ; rm -f /etc/httpd/conf.d/php.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README ; rm -f /etc/httpd/conf.d/userdir.conf ; rm -f /etc/httpd/conf.d/welcome.conf"
+                            },
+                            "05_permisiions" : {
+                                "command" : "chmod -R 644 /etc/httpd/conf.d/"
+                            },
+                            "06_packages" : {
+                                "command" : "yum -y update"
+                            }
                         },
                         "services" : {
                             "sysvinit" : {
@@ -786,7 +786,7 @@
                 }
             },
             "Properties" : {
-				"AvailabilityZone" : "eu-west-1c",
+                "AvailabilityZone" : "eu-west-1c",
                 "ImageId" : {
                     "Fn::FindInMap" : [
                         "AWSRegionArch2AMI",
@@ -828,11 +828,11 @@
                             "Ref" : "AWS::StackName"
                         }
                     },{
-							"Key" : "Name",
-							"Value" : {
-								"Ref" : "AWS::StackName"
-							}
-						}
+                            "Key" : "Name",
+                            "Value" : {
+                                "Ref" : "AWS::StackName"
+                            }
+                        }
                 ],
                 "UserData"          : {
                     "Fn::Base64" : {
@@ -841,8 +841,8 @@
                             [
                                 "#!/bin/bash -v\n",
                                 "yum update -y aws-cfn-bootstrap\n",
-								"# nfs-utils is used by EFS mount command\n",
-								"yum install -y nfs-utils\n",
+                                "# nfs-utils is used by EFS mount command\n",
+                                "yum install -y nfs-utils\n",
                                 "# Helper function\n",
                                 "function error_exit\n",
                                 "{\n",
@@ -876,60 +876,136 @@
                 }
             }
         },
-		"CandCServer"                    : {
-			"DependsOn" : "EFSMountTargetA",
+        "CandCServer"                    : {
+            "DependsOn" : "EFSMountTargetA",
             "Type" : "AWS::EC2::Instance",
             "Metadata" : {
                 "AWS::CloudFormation::Init" : {
                     "config" : {
-						"files" : {
-						    "/tmp/latest-web-directory.tar.gz" : {
-							    "mode" : "600",
-								"source" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/backups-webdirectory/latest.tar.gz"
-								
-							}
-						},
-						"commands" : {
-							"01_mount" : {
-								"command" : {
-									"Fn::Join" : [
-										"",
-										[
-											"mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
-											{
-												"Ref" : "WebServerEFSFileSystem"
-											},
-											".efs.",
-											{
-												"Ref" : "AWS::Region"
-											},
-											".amazonaws.com:/ ",
-											{
-												"Ref" : "ParamWebDirMountPoint"
-											}
-										]
-									]
-								}
-							},
-							"02_unpack_web_dir" : {
-								"command" : "tar -zxf /tmp/latest-web-directory.tar.gz ; rm /tmp/latest-web-directory.tar.gz"
-							},
-							"03_permissions" : {
-								"command" : {
-									"Fn::Join" : [
-										"",
-										[
-											"chown ec2-user:ec2-user ",
-											{
-												"Ref" : "ParamWebDirMountPoint"
-											}
-										]
-									]
-								}
-							},
-							"06_packages" : {
-								"command" : "yum -y update"
-							}
+                        "packages" : {
+                            "yum" : {
+                                "php70": []
+                            }
+                        },
+                        "files" : {
+                            "/tmp/latest-web-directory.tar.gz" : {
+                                "mode" : "600",
+                                "source" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/backups-webdirectory/latest.tar.gz"
+                            },
+                            "/etc/cron.d/backup": {
+                                "content": { 
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                        "* * * * 0 root cd /root/ && php efs-backup.php",
+                                        "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root", 
+                                "mode": "000644", 
+                                "owner": "root"
+                            },
+                            "/root/.aws/credentials" : {
+                                "content": { 
+                                    "Fn::Join": [
+                                        "\n",
+                                        [
+                                          "[application-webhosting]",
+                                          "aws_access_key_id = ",{"Ref" : "AccessKeyID"},
+                                          "aws_secret_access_key = ",{"Ref" : "SecretAccessKeyID"}
+                                        ]
+                                    ]
+                                },
+                                "group": "root", 
+                                "mode": "000600", 
+                                "owner": "root"
+                            },
+                            "/home/ec2-user/efs-backup.php": {
+                                "mode" : "600",
+                                "content": {
+                                    "Fn::Join" : [
+                                      "\n",
+                                      ["<?php",
+
+                                      "exec('cd /root/');",
+                                      "exec('curl -sS https://getcomposer.org/installer | php');",
+                                      "file_put_contents('/root/composer.json','{",
+                                      "    \"require\": {",
+                                      "        \"aws/aws-sdk-php\": \"2.*\"",
+                                      "    }",
+                                      "}');",
+                                      "exec('php composer.phar install');",
+                                      
+                                      "require '/root/vendor/autoload.php';",
+                                      
+                                      "use Aws\\S3\\S3Client;",
+                                      
+                                      "const BUCKET = 'application-webhosting';",
+                                      "const FILENAME = '/tmp/latest-web-directory.tar.gz';",
+                                      
+                                      "//move old local backup",
+                                      "exec('mv '.FILENAME.' '.FILENAME.'.previous');",
+                                      
+                                      "//create backup",
+                                      "exec('tar -czvf '.FILENAME.' /srv');",
+                                      
+                                      "//load profile into client object",
+                                      "$client = S3Client::factory(array(",
+                                      "    'profile' => BUCKET",
+                                      "));",
+                                      
+                                      "//uploade file",
+                                      "$result = $client->putObject(array(",
+                                      "    'Bucket'     => BUCKET,",
+                                      "    'Key'        => 'backups-webdirectory/latest.tar.gz',",
+                                      "    'SourceFile' => FILENAME",
+                                      "));"]
+                                    ]
+                                }
+                            }
+                        },
+                        "commands" : {
+                            "01_mount" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
+                                            {
+                                                "Ref" : "WebServerEFSFileSystem"
+                                            },
+                                            ".efs.",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            ".amazonaws.com:/ ",
+                                            {
+                                                "Ref" : "ParamWebDirMountPoint"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "02_unpack_web_dir" : {
+                                "command" : "tar -zxf /tmp/latest-web-directory.tar.gz ; rm /tmp/latest-web-directory.tar.gz"
+                            },
+                            "03_permissions" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "chown ec2-user:ec2-user ",
+                                            {
+                                                "Ref" : "ParamWebDirMountPoint"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "06_packages" : {
+                                "command" : "yum -y update"
+                            }
                         }
                     }
                 },
@@ -984,11 +1060,11 @@
                             "Ref" : "AWS::StackName"
                         }
                     },{
-							"Key" : "Name",
-							"Value" : {
-								"Ref" : "AWS::StackName"
-							}
-						}
+                            "Key" : "Name",
+                            "Value" : {
+                                "Ref" : "AWS::StackName"
+                            }
+                        }
                 ],
                 "UserData"          : {
                     "Fn::Base64" : {
@@ -997,8 +1073,8 @@
                             [
                                 "#!/bin/bash -v\n",
                                 "yum update -y aws-cfn-bootstrap\n",
-								"# nfs-utils is used by EFS mount command\n",
-								"yum install -y nfs-utils\n",
+                                "# nfs-utils is used by EFS mount command\n",
+                                "yum install -y nfs-utils\n",
                                 "# Helper function\n",
                                 "function error_exit\n",
                                 "{\n",
@@ -1031,6 +1107,43 @@
                     }
                 }
             }
+        },
+        "emailsrvrHealthCheck": {
+          "Type": "AWS::Route53::HealthCheck",
+          "Properties": {
+            "HealthCheckConfig": {
+              "Port": "993",
+              "Type": "TCP",
+              "FullyQualifiedDomainName": "secure.emailsrvr.com",
+              "RequestInterval": "30",
+              "FailureThreshold": "3"
+            },
+            "HealthCheckTags" : [{
+              "Key" : "Application",
+              "Value" : {
+                "Ref" : "AWS::StackName"
+              }
+            }]
+          }
+        },
+        "awsAdireHealthCheck": {
+          "Type": "AWS::Route53::HealthCheck",
+          "Properties": {
+            "HealthCheckConfig": {
+              "Port": "80",
+              "Type": "HTTP",
+              "ResourcePath": "/",
+              "FullyQualifiedDomainName": "adire.co.uk",
+              "RequestInterval": "30",
+              "FailureThreshold": "3"
+            },
+            "HealthCheckTags" : [{
+              "Key" : "Application",
+              "Value" : {
+                "Ref" : "AWS::StackName"
+              }
+            }]
+          }
         }
     },
     "Outputs"                  : {
@@ -1046,7 +1159,7 @@
                                 "DNSName"
                             ]
                         },
-						"    CandC: http://",
+                        "    CandC: http://",
                         {
                             "Fn::GetAtt" : [
                                 "CandCServer",
