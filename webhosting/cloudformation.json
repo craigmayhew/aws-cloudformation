@@ -26,16 +26,6 @@
         "ParamKeyName"          : {
             "Type" : "AWS::EC2::KeyPair::KeyName",
             "Description" : "Name of an existing EC2 key pair to enable SSH access to the ECS instances"
-        },
-        "AccessKeyID"           : {
-            "Description" : "Access key for accessing S3. These are normally associated to an AWS user.",
-            "NoEcho"      : "true",
-            "Type"        : "String"
-        },
-        "SecretAccessKeyID"     : {
-            "Description" : "Secret access key for accessing S3. These are normally associated to an AWS user.",
-            "NoEcho"      : "true",
-            "Type"        : "String"
         }
     },
     "Mappings"                 : {
@@ -467,8 +457,8 @@
                 "AWS::CloudFormation::Authentication" : {
                     "S3" : {
                         "type" : "S3",
-                        "accessKeyId" : {"Ref" : "AccessKeyID"},
-                        "secretKey"   : {"Ref" : "SecretAccessKeyID"},
+                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
+                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
                         "buckets"     : ["application-webhosting"]
                     }
                 }
@@ -623,8 +613,8 @@
                 "AWS::CloudFormation::Authentication" : {
                     "S3" : {
                         "type" : "S3",
-                        "accessKeyId" : {"Ref" : "AccessKeyID"},
-                        "secretKey"   : {"Ref" : "SecretAccessKeyID"},
+                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
+                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
                         "buckets"     : ["application-webhosting"]
                     }
                 }
@@ -779,8 +769,8 @@
                 "AWS::CloudFormation::Authentication" : {
                     "S3" : {
                         "type" : "S3",
-                        "accessKeyId" : {"Ref" : "AccessKeyID"},
-                        "secretKey"   : {"Ref" : "SecretAccessKeyID"},
+                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
+                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
                         "buckets"     : ["application-webhosting"]
                     }
                 }
@@ -912,8 +902,8 @@
                                         "",
                                         [
                                           "[application-webhosting]\n",
-                                          "aws_access_key_id = ",{"Ref" : "AccessKeyID"},"\n"
-                                          "aws_secret_access_key = ",{"Ref" : "SecretAccessKeyID"}
+                                          "aws_access_key_id = ",{"Ref" : "IAMAccessKey"},"\n",
+                                          "aws_secret_access_key = ",{"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]}
                                         ]
                                     ]
                                 },
@@ -1012,8 +1002,8 @@
                 "AWS::CloudFormation::Authentication" : {
                     "S3" : {
                         "type" : "S3",
-                        "accessKeyId" : {"Ref" : "AccessKeyID"},
-                        "secretKey"   : {"Ref" : "SecretAccessKeyID"},
+                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
+                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
                         "buckets"     : ["application-webhosting"]
                     }
                 }
@@ -1145,7 +1135,69 @@
               }
             }]
           }
-        }
+        },
+        "IAMGroup": {
+          "Type": "AWS::IAM::Group",
+          "Properties": {
+            "GroupName": {
+                "Ref" : "AWS::StackName"
+            }
+          }
+        },
+        "IAMPolicy": {
+            "DependsOn": [ "IAMGroup" ],
+            "Type": "AWS::IAM::Policy",
+            "Properties" : {
+              "Groups" : [{
+                "Ref" : "AWS::StackName"
+              }],
+              "PolicyName" : {
+                "Ref" : "AWS::StackName"
+              },
+              "PolicyDocument" : {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:ListBucket"
+                            ],
+                            "Resource": [
+                                "arn:aws:s3:::application-webhosting"
+                            ]
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:GetObject",
+                                "s3:PutObject"
+                            ],
+                            "Resource": [
+                                "arn:aws:s3:::application-webhosting/*"
+                            ]
+                        }
+                    ]
+              }
+            }
+        },
+        "IAMUser": {
+            "DependsOn": [ "IAMGroup" ],
+            "Type": "AWS::IAM::User",
+            "Properties": {
+                "Groups" : [{
+                    "Ref" : "AWS::StackName"
+                }]
+            }
+        },
+        
+        "IAMAccessKey": {
+            "DependsOn": [ "IAMUser" ],
+           "Type": "AWS::IAM::AccessKey",
+           "Properties": {
+              "UserName": {"Ref" : "IAMUser"}
+           }
+        }  
+        
     },
     "Outputs"                  : {
         "WebsiteURL" : {
