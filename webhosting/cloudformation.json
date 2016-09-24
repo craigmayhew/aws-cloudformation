@@ -73,9 +73,9 @@
             "HealthCheck": {
               "Target": "HTTP:80/",
               "HealthyThreshold": "3",
-              "UnhealthyThreshold": "5",
-              "Interval": "30",
-              "Timeout": "5"
+              "UnhealthyThreshold": "3",
+              "Interval": "5",
+              "Timeout": "2"
             },
             "ConnectionDrainingPolicy": {
               "Enabled" : "true",
