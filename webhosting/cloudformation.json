@@ -1206,23 +1206,51 @@
            "Properties": {
               "UserName": {"Ref" : "IAMUser"}
            }
-        }  
+        },
+        
+        "DNSRecord" : {
+          "Type" : "AWS::Route53::RecordSet",
+          "Properties" : {
+             "HostedZoneName" : "adire.co.uk.",
+             "Comment" : "AWS adire hosting platform.",  
+             "Name" : "application-hostingplatform.adire.co.uk.",
+             "Type" : "CNAME",
+             "TTL" : "300",
+             "ResourceRecords" : [
+                { "Fn::GetAtt":["ElasticLoadBalancer","DNSName"] }
+             ]
+          }
+        }
         
     },
     "Outputs"                  : {
-        "WebsiteURL" : {
+        "PlatformURL" : {
+            "Value" : "http://application-hostingplatform.adire.co.uk",
+            "Description" : "URL for newly created website hosting service"
+        },
+		"LoadBalancerURL" : {
             "Value" : {
                 "Fn::Join" : [
                     "",
                     [
-                        "    ELB: http://",
+                        "http://",
                         {
                             "Fn::GetAtt" : [
                                 "ElasticLoadBalancer",
                                 "DNSName"
                             ]
-                        },
-                        "    CandC: http://",
+                        }
+                    ]
+                ]
+            },
+            "Description" : "URL for newly created website hosting service"
+        },
+		"CandCServer" : {
+            "Value" : {
+                "Fn::Join" : [
+                    "",
+                    [
+                        "http://",
                         {
                             "Fn::GetAtt" : [
                                 "CandCServer",
