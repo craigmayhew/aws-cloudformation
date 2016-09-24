@@ -932,24 +932,34 @@
                                       "use Aws\\S3\\S3Client;",
                                       
                                       "const BUCKET = 'application-webhosting';",
-                                      "const FILENAME = '/tmp/latest-web-directory.tar.gz';",
+                                      "const FILENAME_WEB = '/tmp/latest-web-directory.tar.gz';",
+                                      "const FILENAME_APACHE_CONFIG = '/tmp/latest-web-config.tar.gz';",
                                       
-                                      "//move old local backup",
-                                      "exec('mv '.FILENAME.' '.FILENAME.'.previous');",
+                                      "//move old local backups",
+                                      "exec('mv '.FILENAME_WEB.' '.FILENAME_WEB.'.previous');",
+                                      "exec('mv '.FILENAME_APACHE_CONFIG.' '.FILENAME_APACHE_CONFIG.'.previous');",
                                       
-                                      "//create backup",
-                                      "exec('tar -czvf '.FILENAME.' /srv');",
+                                      "//create backups",
+                                      "exec('tar -czvf '.FILENAME_WEB.' /srv');",
+                                      "exec('tar -czvf '.FILENAME_APACHE_CONFIG.' /etc/httpd/conf.d');",
                                       
                                       "//load profile into client object",
                                       "$client = S3Client::factory(array(",
                                       "    'profile' => BUCKET",
                                       "));",
                                       
-                                      "//uploade file",
+                                      "//upload FILENAME_WEB",
                                       "$result = $client->putObject(array(",
                                       "    'Bucket'     => BUCKET,",
                                       "    'Key'        => 'backups-webdirectory/latest.tar.gz',",
-                                      "    'SourceFile' => FILENAME",
+                                      "    'SourceFile' => FILENAME_WEB",
+                                      "));",
+                                      
+                                      "//upload FILENAME_APACHE_CONFIG",
+                                      "$result = $client->putObject(array(",
+                                      "    'Bucket'     => BUCKET,",
+                                      "    'Key'        => 'apache-configs/apache-config.tar.gz',",
+                                      "    'SourceFile' => FILENAME_APACHE_CONFIG",
                                       "));"]
                                     ]
                                 }
