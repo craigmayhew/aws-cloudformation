@@ -185,6 +185,12 @@
                         "FromPort"   : "22",
                         "ToPort"     : "22",
                         "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "8140",
+                        "ToPort"     : "8140",
+                        "CidrIp"     : "10.0.0.0/16"
                     }
                 ],
                 "VpcId"                : {
@@ -406,11 +412,27 @@
                     "config" : {
                         "packages" : {
                             "yum" : {
-                                "php70": []
+                                "php70": [],
+                                "puppet": []
                             }
                         },
-                        "sources"  : {
-                            "/etc/httpd/conf.d" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
+                        "files" : {
+                            "/etc/puppet/puppet.conf" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "[main]\n",
+                                    " logdir=/var/log/puppet\n",
+                                    " rundir=/var/run/puppet\n",
+                                    " ssldir=$vardir/ssl\n",
+                                    " pluginsync=true\n",
+                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
+                                    "[agent]\n",
+                                    " classfile=$vardir/classes.txt\n",
+                                    " localconfig=$vardir/localconfig\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
+                            }
                         },
                         "commands" : {
                             "01_mount" : {
@@ -434,11 +456,11 @@
                                     ]
                                 }
                             },
-                            "04_delete_default_httpd_configs" : {
-                                "command" : "rm -f /etc/httpd/conf.d/autoindex.conf ; rm -f /etc/httpd/conf.d/notrace.conf ; rm -f /etc/httpd/conf.d/php.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README ; rm -f /etc/httpd/conf.d/userdir.conf ; rm -f /etc/httpd/conf.d/welcome.conf"
+                            "03_hostname" : {
+                                "command" : "sudo hostname web1.internal.adire.co.uk"
                             },
-                            "05_permisiions" : {
-                                "command" : "chmod -R 644 /etc/httpd/conf.d/"
+                            "04_delete_default_httpd_configs" : {
+                                "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
                             },
                             "06_packages" : {
                                 "command" : "yum -y update"
@@ -447,6 +469,10 @@
                         "services" : {
                             "sysvinit" : {
                                 "httpd" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                },
+                                "puppet" : {
                                     "enabled" : "true",
                                     "ensureRunning" : "true"
                                 }
@@ -562,11 +588,27 @@
                     "config" : {
                         "packages" : {
                             "yum" : {
-                                "php70": []
+                                "php70": [],
+                                "puppet": []
                             }
                         },
-                        "sources"  : {
-                            "/etc/httpd/conf.d" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
+                        "files" : {
+                            "/etc/puppet/puppet.conf" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "[main]\n",
+                                    " logdir=/var/log/puppet\n",
+                                    " rundir=/var/run/puppet\n",
+                                    " ssldir=$vardir/ssl\n",
+                                    " pluginsync=true\n",
+                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
+                                    "[agent]\n",
+                                    " classfile=$vardir/classes.txt\n",
+                                    " localconfig=$vardir/localconfig\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
+                            }
                         },
                         "commands" : {
                             "01_mount" : {
@@ -590,11 +632,11 @@
                                     ]
                                 }
                             },
-                            "04_delete_default_httpd_configs" : {
-                                "command" : "rm -f /etc/httpd/conf.d/autoindex.conf ; rm -f /etc/httpd/conf.d/notrace.conf ; rm -f /etc/httpd/conf.d/php.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README ; rm -f /etc/httpd/conf.d/userdir.conf ; rm -f /etc/httpd/conf.d/welcome.conf"
+                            "03_hostname" : {
+                                "command" : "sudo hostname web2.internal.adire.co.uk"
                             },
-                            "05_permisiions" : {
-                                "command" : "chmod -R 644 /etc/httpd/conf.d/"
+                            "04_delete_default_httpd_configs" : {
+                                "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
                             },
                             "06_packages" : {
                                 "command" : "yum -y update"
@@ -603,6 +645,10 @@
                         "services" : {
                             "sysvinit" : {
                                 "httpd" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                },
+                                "puppet" : {
                                     "enabled" : "true",
                                     "ensureRunning" : "true"
                                 }
@@ -718,11 +764,30 @@
                     "config" : {
                         "packages" : {
                             "yum" : {
-                                "php70": []
+                                "php70": [],
+                                "puppet": []
                             }
                         },
                         "sources"  : {
-                            "/etc/httpd/conf.d" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
+                            "/etc/puppet/files/httpd" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
+                        },
+                        "files" : {
+                            "/etc/puppet/puppet.conf" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "[main]\n",
+                                    " logdir=/var/log/puppet\n",
+                                    " rundir=/var/run/puppet\n",
+                                    " ssldir=$vardir/ssl\n",
+                                    " pluginsync=true\n",
+                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
+                                    "[agent]\n",
+                                    " classfile=$vardir/classes.txt\n",
+                                    " localconfig=$vardir/localconfig\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
+                            }
                         },
                         "commands" : {
                             "01_mount" : {
@@ -746,11 +811,11 @@
                                     ]
                                 }
                             },
-                            "04_delete_default_httpd_configs" : {
-                                "command" : "rm -f /etc/httpd/conf.d/autoindex.conf ; rm -f /etc/httpd/conf.d/notrace.conf ; rm -f /etc/httpd/conf.d/php.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README ; rm -f /etc/httpd/conf.d/userdir.conf ; rm -f /etc/httpd/conf.d/welcome.conf"
+                            "03_hostname" : {
+                                "command" : "sudo hostname web3.internal.adire.co.uk"
                             },
-                            "05_permisiions" : {
-                                "command" : "chmod -R 644 /etc/httpd/conf.d/"
+                            "04_delete_default_httpd_configs" : {
+                                "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
                             },
                             "06_packages" : {
                                 "command" : "yum -y update"
@@ -759,6 +824,10 @@
                         "services" : {
                             "sysvinit" : {
                                 "httpd" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                },
+                                "puppet" : {
                                     "enabled" : "true",
                                     "ensureRunning" : "true"
                                 }
@@ -874,8 +943,12 @@
                     "config" : {
                         "packages" : {
                             "yum" : {
-                                "php70": []
+                                "php70": [],
+                                "puppet-server": []
                             }
+                        },
+                        "sources"  : {
+                            "/etc/puppet/files/sites" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
                         },
                         "files" : {
                             "/tmp/latest-web-directory.tar.gz" : {
@@ -937,11 +1010,11 @@
                                       
                                       "//move old local backups",
                                       "exec('mv '.FILENAME_WEB.' '.FILENAME_WEB.'.previous');",
-                                      "//exec('mv '.FILENAME_APACHE_CONFIG.' '.FILENAME_APACHE_CONFIG.'.previous');",
+                                      "exec('mv '.FILENAME_APACHE_CONFIG.' '.FILENAME_APACHE_CONFIG.'.previous');",
                                       
                                       "//create backups",
                                       "exec('tar -czvf '.FILENAME_WEB.' /srv');",
-                                      "//exec('tar -czvf '.FILENAME_APACHE_CONFIG.' /etc/httpd/conf.d');",
+                                      "exec('tar -czvf '.FILENAME_APACHE_CONFIG.' /etc/puppet/files/sites');",
                                       
                                       "//load profile into client object",
                                       "$client = S3Client::factory(array(",
@@ -956,13 +1029,79 @@
                                       "));",
                                       
                                       "//upload FILENAME_APACHE_CONFIG",
-                                      "/*$result = $client->putObject(array(",
+                                      "$result = $client->putObject(array(",
                                       "    'Bucket'     => BUCKET,",
                                       "    'Key'        => 'apache-configs/apache-config.tar.gz',",
                                       "    'SourceFile' => FILENAME_APACHE_CONFIG",
-                                      "));*/"]
+                                      "));"]
                                     ]
                                 }
+                            },
+                            "/etc/puppet/autosign.conf" : {
+                                "content" : "*.internal.adire.co.uk\n",
+                                "mode" : "100644",
+                                "owner" : "root",
+                                "group" : "root"
+                            },
+                            "/etc/puppet/fileserver.conf" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "[files]\n",
+                                    " path /etc/puppet/files\n",
+                                    " allow *.internal.adire.co.uk\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
+                            },
+                            "/etc/puppet/manifests/site.pp" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "class toolbox {\n",
+                                    "        file { '/usr/local/sbin/puppetsimple.sh':\n",
+                                    "                owner => root, group => root, mode => 0755,\n",
+                                    "                content => \"#!/bin/sh\\npuppet agent --onetime --no-daemonize --verbose $1\",\n",
+                                    "        }\n",
+                                    "}\n",
+
+                                    "service { 'httpd':\n",
+                                    "    ensure  => 'running',\n",
+                                    "    enable  => true,\n",
+                                    "    hasrestart => true,\n",
+                                    "}\n",
+
+                                    "class sites {\n",
+                                    "        file {['/etc','/etc/httpd']:\n",
+                                    "          ensure => directory\n",
+                                    "        }\n",
+                                    "        file { '/etc/httpd/conf.d':\n",
+                                    "                ensure       => directory,\n",
+                                    "                group        => root,\n",
+                                    "                mode         => 0644,\n",
+                                    "                notify       => Service['httpd'],\n",
+                                    "                owner        => root,\n",
+                                    "                path         => '/etc/httpd/conf.d',\n",
+                                    "                recurse      => true,\n",
+                                    "                source       => 'puppet:///files/sites'\n",
+                                    "        }\n",
+                                    "}\n",
+
+                                    "node 'web1.internal.adire.co.uk' {\n",
+                                    "        include sites\n",
+                                    "        include toolbox\n",
+                                    "}\n",
+                                    
+                                    "node 'web2.internal.adire.co.uk' {\n",
+                                    "        include sites\n",
+                                    "        include toolbox\n",
+                                    "}\n",
+                                    
+                                    "node 'web3.internal.adire.co.uk' {\n",
+                                    "        include sites\n",
+                                    "        include toolbox\n",
+                                    "}\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
                             }
                         },
                         "commands" : {
@@ -995,16 +1134,22 @@
                                     "Fn::Join" : [
                                         "",
                                         [
-                                            "chown ec2-user:ec2-user ",
-                                            {
-                                                "Ref" : "ParamWebDirMountPoint"
-                                            }
+                                            "chown ec2-user:ec2-user ",{"Ref" : "ParamWebDirMountPoint"},"\n",
+                                            "chmod -R 744 /etc/puppet/files/ && chown -R puppet:puppet /etc/puppet/files/"
                                         ]
                                     ]
                                 }
                             },
-                            "06_packages" : {
+                            "04_packages" : {
                                 "command" : "yum -y update"
+                            }
+                        },
+                        "services" : {
+                            "sysvinit" : {
+                               "puppetmaster" : {
+                                   "enabled" : "true",
+                                   "ensureRunning" : "true"
+                                }
                             }
                         }
                     }
@@ -1228,7 +1373,7 @@
             "Value" : "http://application-hostingplatform.adire.co.uk",
             "Description" : "URL for newly created website hosting service"
         },
-		"LoadBalancerURL" : {
+        "LoadBalancerURL" : {
             "Value" : {
                 "Fn::Join" : [
                     "",
@@ -1245,7 +1390,7 @@
             },
             "Description" : "URL for newly created website hosting service"
         },
-		"CandCServer" : {
+        "CandCServer" : {
             "Value" : {
                 "Fn::Join" : [
                     "",
