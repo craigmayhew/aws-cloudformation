@@ -13,7 +13,7 @@ Load latest backup of webdirectory
 Save latest backup
 > tar -czvf /tmp/latest-web-directory.tar.gz /srv
 
-Save latest apache configs (if doign manually from web server)
+Save latest apache configs (if doing manually from web server)
 > cd /etc/httpd/conf.d/ ; tar -czvf /tmp/apache-config.tar.gz ./
 
 Save latest apache configs (from puppet master)
