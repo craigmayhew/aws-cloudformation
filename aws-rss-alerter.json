@@ -5,7 +5,7 @@
         "ParamURLs" : {
             "Description" : "comma separated list of urls to check for RSS updates",
             "Type"        : "CommaDelimitedList",
-            "Default"     : "https://aws.amazon.com/blogs/aws/feed/,https://larnerholt.com/feed/,https://blog.mprelu.de/feed"
+            "Default"     : "https://aws.amazon.com/blogs/aws/feed/,https://larnerholt.com/feed/,https://blog.mprelu.de/feed,http://blog.ieeesoftware.org/feeds/posts/default?alt=rss"
         },
         "ParamS3Bucket" : {
             "Description" : "S3 Bucket to store alerted blog posts",
