@@ -1,9 +1,10 @@
 # aws webhosting platform
-eu-west-1 hosted web service across 3 availibility zones. Takes ~10 mins from cloudfront create event starting to serving traffic.
+eu-west-1 hosted web service across 3 availibility zones. Takes ~10 mins from cloudfront create event to start serving traffic.
 
 ## locations
-- /etc/httpd/conf.d
-- /srv
+- Web: /etc/httpd/conf.d
+- Puppet: /etc/puppet/files
+- All: /srv
 
 ## useful commands
 Load latest backup of webdirectory
