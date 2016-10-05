@@ -960,7 +960,7 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                        "* * * * 0 root cd /root/ && php efs-backup.php",
+                                        "0 * * * * root cd /root/ && php efs-backup.php",
                                         "\n"
                                         ]
                                     ]
