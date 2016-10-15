@@ -66,10 +66,8 @@
     "Resources"                : {
         "ElasticLoadBalancer" : {
           "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
-          "DependsOn": [ "WebServerA", "WebServerB", "WebServerC" ],
           "Properties" : {
             "Subnets" : [ { "Ref" : "SubnetIdA" },{ "Ref" : "SubnetIdB" },{ "Ref" : "SubnetIdC" } ],
-            "Instances" : [ { "Ref" : "WebServerA" },{ "Ref" : "WebServerB" },{ "Ref" : "WebServerC" } ],
             "Listeners": [{
               "LoadBalancerPort": "80",
               "InstancePort": "80",
@@ -167,6 +165,199 @@
                     "Ref" : "adireWebhostingPlatform"
                 }
             }
+        },
+        "AutoScalerConfig": {
+           "Type" : "AWS::AutoScaling::LaunchConfiguration",
+           "Metadata" : {
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                        "packages" : {
+                            "yum" : {
+                                "php70": [],
+                                "php70-mysqlnd": [],
+                                "puppet": []
+                            }
+                        },
+                        "files" : {
+                            "/etc/puppet/puppet.conf" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "[main]\n",
+                                    " logdir=/var/log/puppet\n",
+                                    " rundir=/var/run/puppet\n",
+                                    " ssldir=$vardir/ssl\n",
+                                    " pluginsync=true\n",
+                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
+                                    "[agent]\n",
+                                    " classfile=$vardir/classes.txt\n",
+                                    " localconfig=$vardir/localconfig\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
+                            }
+                        },
+                        "commands" : {
+                            "01_mount" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
+                                            {
+                                                "Ref" : "WebServerEFSFileSystem"
+                                            },
+                                            ".efs.",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            ".amazonaws.com:/ ",
+                                            {
+                                                "Ref" : "ParamWebDirMountPoint"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "03_hostname" : {
+                                "command" : "sudo hostname web`date +%s%N`.internal.adire.co.uk"
+                            },
+                            "04_delete_default_httpd_configs" : {
+                                "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
+                            },
+                            "06_packages" : {
+                                "command" : "yum -y update"
+                            }
+                        },
+                        "services" : {
+                            "sysvinit" : {
+                                "httpd" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                },
+                                "puppet" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                }
+                            }
+                        }
+                    }
+                },
+                "AWS::CloudFormation::Authentication" : {
+                    "S3" : {
+                        "type" : "S3",
+                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
+                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
+                        "buckets"     : ["application-webhosting"]
+                    }
+                }
+            },
+            "Properties" : {
+                "AssociatePublicIpAddress" : false,
+                "EbsOptimized" : false,
+                "ImageId" : {
+                    "Fn::FindInMap" : [
+                        "AWSRegionArch2AMI",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap" : [
+                                "AWSInstanceType2Arch",
+                                {
+                                    "Ref" : "ParamInstanceType"
+                                },
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceMonitoring" : true,
+                "InstanceType" : {"Ref" : "ParamInstanceType"},
+                "KeyName"      : {"Ref" : "ParamKeyName"},
+                "AssociatePublicIpAddress" : "true",
+                "UserData"          : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "#!/bin/bash -v\n",
+                                "yum update -y aws-cfn-bootstrap\n",
+                                "# nfs-utils is used by EFS mount command\n",
+                                "yum install -y nfs-utils\n",
+                                "# Helper function\n",
+                                "function error_exit\n",
+                                "{\n",
+                                "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n",
+                                "  exit 1\n",
+                                "}\n",
+                                "# Install LAP packages\n",
+                                "/opt/aws/bin/cfn-init --stack ",
+                                {
+                                    "Ref" : "AWS::StackId"
+                                },
+                                " --resource AutoScalerConfig --region ",
+                                {
+                                    "Ref" : "AWS::Region"
+                                },
+                                " || error_exit 'Failed to run cfn-init on WebVM'\n",
+                                "# Web dir is /srv/\n",
+                                "# All is well so signal success\n",
+                                "/opt/aws/bin/cfn-signal -e 0 -r \"LAP Stack setup complete\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n"
+                            ]
+                        ]
+                    }
+                },
+              "SecurityGroups" : [ { "Ref" : "SecurityGroupFileSystem" } , {"Ref" : "WebServerSecurityGroup"}]
+            }
+        },
+        "AutoScaler": {
+           "Type" : "AWS::AutoScaling::AutoScalingGroup",
+           "DependsOn": "CandCServer",
+           "Properties" : {
+              "AvailabilityZones" : { "Fn::GetAZs" : "" },
+              "Cooldown" : "300",
+              "DesiredCapacity" : "2",
+              "HealthCheckGracePeriod" : "180",
+              "HealthCheckType" : "ELB",
+              "LaunchConfigurationName" : {"Ref" : "AutoScalerConfig"},
+              "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+              "MaxSize" : "6",
+              "MetricsCollection": [
+                 {
+                    "Granularity": "1Minute",
+                    "Metrics": [
+                       "GroupMinSize",
+                       "GroupMaxSize"
+                    ]
+                 }
+              ],
+              "MinSize" : "2",
+              "Tags"                 : [
+                    {
+                        "Key" : "Application",
+                        "PropagateAtLaunch" : true,
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+                        "Key" : "Name",
+                        "PropagateAtLaunch" : true,
+                        "Value" : {"Fn::Join" : [
+                            "",
+                            [{"Ref" : "AWS::StackName"},": Web"]
+                        ]}
+                    }
+              ],
+              "VPCZoneIdentifier" : [ {"Ref" : "SubnetIdA"}, {"Ref" : "SubnetIdB"}, {"Ref" : "SubnetIdC"} ]
+           }
         },
         "WebServerSecurityGroup"  : {
             "Type" : "AWS::EC2::SecurityGroup",
@@ -299,7 +490,7 @@
         },
         "WaitCondition"           : {
             "Type" : "AWS::CloudFormation::WaitCondition",
-            "DependsOn" : "WebServerA",
+            "DependsOn" : "AutoScalerConfig",
             "Properties" : {
                 "Handle" : {
                     "Ref" : "WaitHandle"
@@ -409,537 +600,6 @@
             },
             "Type" : "AWS::EC2::SubnetRouteTableAssociation"
         },
-        "WebServerA"                    : {
-            "DependsOn" : [ "EFSMountTargetA", "CandCServer", "EFSMountTargetA"],
-            "Type" : "AWS::EC2::Instance",
-            "Metadata" : {
-                "AWS::CloudFormation::Init" : {
-                    "config" : {
-                        "packages" : {
-                            "yum" : {
-                                "php70": [],
-                                "puppet": []
-                            }
-                        },
-                        "files" : {
-                            "/etc/puppet/puppet.conf" : {
-                                "content" : { "Fn::Join" : ["", [
-                                    "[main]\n",
-                                    " logdir=/var/log/puppet\n",
-                                    " rundir=/var/run/puppet\n",
-                                    " ssldir=$vardir/ssl\n",
-                                    " pluginsync=true\n",
-                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
-                                    "[agent]\n",
-                                    " classfile=$vardir/classes.txt\n",
-                                    " localconfig=$vardir/localconfig\n"
-                                ]] },
-                                "mode" : "000644",
-                                "owner" : "root",
-                                "group" : "root"
-                            }
-                        },
-                        "commands" : {
-                            "01_mount" : {
-                                "command" : {
-                                    "Fn::Join" : [
-                                        "",
-                                        [
-                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
-                                            {
-                                                "Ref" : "WebServerEFSFileSystem"
-                                            },
-                                            ".efs.",
-                                            {
-                                                "Ref" : "AWS::Region"
-                                            },
-                                            ".amazonaws.com:/ ",
-                                            {
-                                                "Ref" : "ParamWebDirMountPoint"
-                                            }
-                                        ]
-                                    ]
-                                }
-                            },
-                            "03_hostname" : {
-                                "command" : "sudo hostname web1.internal.adire.co.uk"
-                            },
-                            "04_delete_default_httpd_configs" : {
-                                "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
-                            },
-                            "06_packages" : {
-                                "command" : "yum -y update"
-                            }
-                        },
-                        "services" : {
-                            "sysvinit" : {
-                                "httpd" : {
-                                    "enabled" : "true",
-                                    "ensureRunning" : "true"
-                                },
-                                "puppet" : {
-                                    "enabled" : "true",
-                                    "ensureRunning" : "true"
-                                }
-                            }
-                        }
-                    }
-                },
-                "AWS::CloudFormation::Authentication" : {
-                    "S3" : {
-                        "type" : "S3",
-                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
-                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
-                        "buckets"     : ["application-webhosting"]
-                    }
-                }
-            },
-            "Properties" : {
-                "AvailabilityZone" : "eu-west-1a",
-                "ImageId" : {
-                    "Fn::FindInMap" : [
-                        "AWSRegionArch2AMI",
-                        {
-                            "Ref" : "AWS::Region"
-                        },
-                        {
-                            "Fn::FindInMap" : [
-                                "AWSInstanceType2Arch",
-                                {
-                                    "Ref" : "ParamInstanceType"
-                                },
-                                "Arch"
-                            ]
-                        }
-                    ]
-                },
-                "InstanceType" : {"Ref" : "ParamInstanceType"},
-                "KeyName"      : {"Ref" : "ParamKeyName"},
-                "NetworkInterfaces" : [
-                    {
-                        "GroupSet" : [
-                            {
-                                "Ref" : "WebServerSecurityGroup"
-                            }
-                        ],
-                        "AssociatePublicIpAddress" : "true",
-                        "DeviceIndex"              : "0",
-                        "DeleteOnTermination"      : "true",
-                        "SubnetId"                 : {
-                            "Ref" : "SubnetIdA"
-                        }
-                    }
-                ],
-                "Tags"              : [
-                    {
-                        "Key" : "Application",
-                        "Value" : {
-                            "Ref" : "AWS::StackName"
-                        }
-                    },{
-                            "Key" : "Name",
-                            "Value" : {
-                                "Ref" : "AWS::StackName"
-                            }
-                        }
-                ],
-                "UserData"          : {
-                    "Fn::Base64" : {
-                        "Fn::Join" : [
-                            "",
-                            [
-                                "#!/bin/bash -v\n",
-                                "yum update -y aws-cfn-bootstrap\n",
-                                "# nfs-utils is used by EFS mount command\n",
-                                "yum install -y nfs-utils\n",
-                                "# Helper function\n",
-                                "function error_exit\n",
-                                "{\n",
-                                "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
-                                {
-                                    "Ref" : "WaitHandle"
-                                },
-                                "'\n",
-                                "  exit 1\n",
-                                "}\n",
-                                "# Install LAP packages\n",
-                                "/opt/aws/bin/cfn-init -s ",
-                                {
-                                    "Ref" : "AWS::StackId"
-                                },
-                                " -r WebServerA --region ",
-                                {
-                                    "Ref" : "AWS::Region"
-                                },
-                                " || error_exit 'Failed to run cfn-init on WebA'\n",
-                                "# Web dir is /srv/\n",
-                                "# All is well so signal success\n",
-                                "/opt/aws/bin/cfn-signal -e 0 -r \"LAP Stack setup complete\" '",
-                                {
-                                    "Ref" : "WaitHandle"
-                                },
-                                "'\n"
-                            ]
-                        ]
-                    }
-                }
-            }
-        },
-        "WebServerB"                    : {
-            "DependsOn" : [ "EFSMountTargetB", "CandCServer", "EFSMountTargetB" ],
-            "Type" : "AWS::EC2::Instance",
-            "Metadata" : {
-                "AWS::CloudFormation::Init" : {
-                    "config" : {
-                        "packages" : {
-                            "yum" : {
-                                "php70": [],
-                                "puppet": []
-                            }
-                        },
-                        "files" : {
-                            "/etc/puppet/puppet.conf" : {
-                                "content" : { "Fn::Join" : ["", [
-                                    "[main]\n",
-                                    " logdir=/var/log/puppet\n",
-                                    " rundir=/var/run/puppet\n",
-                                    " ssldir=$vardir/ssl\n",
-                                    " pluginsync=true\n",
-                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
-                                    "[agent]\n",
-                                    " classfile=$vardir/classes.txt\n",
-                                    " localconfig=$vardir/localconfig\n"
-                                ]] },
-                                "mode" : "000644",
-                                "owner" : "root",
-                                "group" : "root"
-                            }
-                        },
-                        "commands" : {
-                            "01_mount" : {
-                                "command" : {
-                                    "Fn::Join" : [
-                                        "",
-                                        [
-                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
-                                            {
-                                                "Ref" : "WebServerEFSFileSystem"
-                                            },
-                                            ".efs.",
-                                            {
-                                                "Ref" : "AWS::Region"
-                                            },
-                                            ".amazonaws.com:/ ",
-                                            {
-                                                "Ref" : "ParamWebDirMountPoint"
-                                            }
-                                        ]
-                                    ]
-                                }
-                            },
-                            "03_hostname" : {
-                                "command" : "sudo hostname web2.internal.adire.co.uk"
-                            },
-                            "04_delete_default_httpd_configs" : {
-                                "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
-                            },
-                            "06_packages" : {
-                                "command" : "yum -y update"
-                            }
-                        },
-                        "services" : {
-                            "sysvinit" : {
-                                "httpd" : {
-                                    "enabled" : "true",
-                                    "ensureRunning" : "true"
-                                },
-                                "puppet" : {
-                                    "enabled" : "true",
-                                    "ensureRunning" : "true"
-                                }
-                            }
-                        }
-                    }
-                },
-                "AWS::CloudFormation::Authentication" : {
-                    "S3" : {
-                        "type" : "S3",
-                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
-                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
-                        "buckets"     : ["application-webhosting"]
-                    }
-                }
-            },
-            "Properties" : {
-                "AvailabilityZone" : "eu-west-1b",
-                "ImageId" : {
-                    "Fn::FindInMap" : [
-                        "AWSRegionArch2AMI",
-                        {
-                            "Ref" : "AWS::Region"
-                        },
-                        {
-                            "Fn::FindInMap" : [
-                                "AWSInstanceType2Arch",
-                                {
-                                    "Ref" : "ParamInstanceType"
-                                },
-                                "Arch"
-                            ]
-                        }
-                    ]
-                },
-                "InstanceType" : {"Ref" : "ParamInstanceType"},
-                "KeyName"      : {"Ref" : "ParamKeyName"},
-                "NetworkInterfaces" : [
-                    {
-                        "GroupSet" : [
-                            {
-                                "Ref" : "WebServerSecurityGroup"
-                            }
-                        ],
-                        "AssociatePublicIpAddress" : "true",
-                        "DeviceIndex"              : "0",
-                        "DeleteOnTermination"      : "true",
-                        "SubnetId"                 : {
-                            "Ref" : "SubnetIdB"
-                        }
-                    }
-                ],
-                "Tags"              : [
-                    {
-                        "Key" : "Application",
-                        "Value" : {
-                            "Ref" : "AWS::StackName"
-                        }
-                    },{
-                        "Key" : "Name",
-                        "Value" : {
-                            "Ref" : "AWS::StackName"
-                        }
-                    }
-                ],
-                "UserData"          : {
-                    "Fn::Base64" : {
-                        "Fn::Join" : [
-                            "",
-                            [
-                                "#!/bin/bash -v\n",
-                                "yum update -y aws-cfn-bootstrap\n",
-                                "# nfs-utils is used by EFS mount command\n",
-                                "yum install -y nfs-utils\n",
-                                "# Helper function\n",
-                                "function error_exit\n",
-                                "{\n",
-                                "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
-                                {
-                                    "Ref" : "WaitHandle"
-                                },
-                                "'\n",
-                                "  exit 1\n",
-                                "}\n",
-                                "# Install LAP packages\n",
-                                "/opt/aws/bin/cfn-init -s ",
-                                {
-                                    "Ref" : "AWS::StackId"
-                                },
-                                " -r WebServerB --region ",
-                                {
-                                    "Ref" : "AWS::Region"
-                                },
-                                " || error_exit 'Failed to run cfn-init on WebB'\n",
-                                "# Web dir is /srv/\n",
-                                "# All is well so signal success\n",
-                                "/opt/aws/bin/cfn-signal -e 0 -r \"LAP Stack setup complete\" '",
-                                {
-                                    "Ref" : "WaitHandle"
-                                },
-                                "'\n"
-                            ]
-                        ]
-                    }
-                }
-            }
-        },
-        "WebServerC"                    : {
-            "DependsOn" : [ "EFSMountTargetC", "CandCServer", "EFSMountTargetC" ],
-            "Type" : "AWS::EC2::Instance",
-            "Metadata" : {
-                "AWS::CloudFormation::Init" : {
-                    "config" : {
-                        "packages" : {
-                            "yum" : {
-                                "php70": [],
-                                "puppet": []
-                            }
-                        },
-                        "sources"  : {
-                            "/etc/puppet/files/httpd" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
-                        },
-                        "files" : {
-                            "/etc/puppet/puppet.conf" : {
-                                "content" : { "Fn::Join" : ["", [
-                                    "[main]\n",
-                                    " logdir=/var/log/puppet\n",
-                                    " rundir=/var/run/puppet\n",
-                                    " ssldir=$vardir/ssl\n",
-                                    " pluginsync=true\n",
-                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
-                                    "[agent]\n",
-                                    " classfile=$vardir/classes.txt\n",
-                                    " localconfig=$vardir/localconfig\n"
-                                ]] },
-                                "mode" : "000644",
-                                "owner" : "root",
-                                "group" : "root"
-                            }
-                        },
-                        "commands" : {
-                            "01_mount" : {
-                                "command" : {
-                                    "Fn::Join" : [
-                                        "",
-                                        [
-                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
-                                            {
-                                                "Ref" : "WebServerEFSFileSystem"
-                                            },
-                                            ".efs.",
-                                            {
-                                                "Ref" : "AWS::Region"
-                                            },
-                                            ".amazonaws.com:/ ",
-                                            {
-                                                "Ref" : "ParamWebDirMountPoint"
-                                            }
-                                        ]
-                                    ]
-                                }
-                            },
-                            "03_hostname" : {
-                                "command" : "sudo hostname web3.internal.adire.co.uk"
-                            },
-                            "04_delete_default_httpd_configs" : {
-                                "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
-                            },
-                            "06_packages" : {
-                                "command" : "yum -y update"
-                            }
-                        },
-                        "services" : {
-                            "sysvinit" : {
-                                "httpd" : {
-                                    "enabled" : "true",
-                                    "ensureRunning" : "true"
-                                },
-                                "puppet" : {
-                                    "enabled" : "true",
-                                    "ensureRunning" : "true"
-                                }
-                            }
-                        }
-                    }
-                },
-                "AWS::CloudFormation::Authentication" : {
-                    "S3" : {
-                        "type" : "S3",
-                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
-                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
-                        "buckets"     : ["application-webhosting"]
-                    }
-                }
-            },
-            "Properties" : {
-                "AvailabilityZone" : "eu-west-1c",
-                "ImageId" : {
-                    "Fn::FindInMap" : [
-                        "AWSRegionArch2AMI",
-                        {
-                            "Ref" : "AWS::Region"
-                        },
-                        {
-                            "Fn::FindInMap" : [
-                                "AWSInstanceType2Arch",
-                                {
-                                    "Ref" : "ParamInstanceType"
-                                },
-                                "Arch"
-                            ]
-                        }
-                    ]
-                },
-                "InstanceType" : {"Ref" : "ParamInstanceType"},
-                "KeyName"      : {"Ref" : "ParamKeyName"},
-                "NetworkInterfaces" : [
-                    {
-                        "GroupSet" : [
-                            {
-                                "Ref" : "WebServerSecurityGroup"
-                            }
-                        ],
-                        "AssociatePublicIpAddress" : "true",
-                        "DeviceIndex"              : "0",
-                        "DeleteOnTermination"      : "true",
-                        "SubnetId"                 : {
-                            "Ref" : "SubnetIdC"
-                        }
-                    }
-                ],
-                "Tags"              : [
-                    {
-                        "Key" : "Application",
-                        "Value" : {
-                            "Ref" : "AWS::StackName"
-                        }
-                    },{
-                            "Key" : "Name",
-                            "Value" : {
-                                "Ref" : "AWS::StackName"
-                            }
-                        }
-                ],
-                "UserData"          : {
-                    "Fn::Base64" : {
-                        "Fn::Join" : [
-                            "",
-                            [
-                                "#!/bin/bash -v\n",
-                                "yum update -y aws-cfn-bootstrap\n",
-                                "# nfs-utils is used by EFS mount command\n",
-                                "yum install -y nfs-utils\n",
-                                "# Helper function\n",
-                                "function error_exit\n",
-                                "{\n",
-                                "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
-                                {
-                                    "Ref" : "WaitHandle"
-                                },
-                                "'\n",
-                                "  exit 1\n",
-                                "}\n",
-                                "# Install LAP packages\n",
-                                "/opt/aws/bin/cfn-init -s ",
-                                {
-                                    "Ref" : "AWS::StackId"
-                                },
-                                " -r WebServerC --region ",
-                                {
-                                    "Ref" : "AWS::Region"
-                                },
-                                " || error_exit 'Failed to run cfn-init on WebC'\n",
-                                "# Web dir is /srv/\n",
-                                "# All is well so signal success\n",
-                                "/opt/aws/bin/cfn-signal -e 0 -r \"LAP Stack setup complete\" '",
-                                {
-                                    "Ref" : "WaitHandle"
-                                },
-                                "'\n"
-                            ]
-                        ]
-                    }
-                }
-            }
-        },
         "CandCServer"                    : {
             "DependsOn" : "EFSMountTargetA",
             "Type" : "AWS::EC2::Instance",
@@ -949,13 +609,15 @@
                         "packages" : {
                             "yum" : {
                                 "php70": [],
+                                "php70-mysqlnd": [],
                                 "puppet-server": []
                             }
                         },
-                        "sources"  : {
-                            "/etc/puppet/files/sites" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
-                        },
-                        "files" : {
+                        "files"  : {
+                            "/tmp/sites.tar.gz" : {
+                                "mode" : "744",
+                                "source" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
+                            },
                             "/tmp/latest-web-directory.tar.gz" : {
                                 "mode" : "600",
                                 "source" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/backups-webdirectory/latest.tar.gz"
@@ -1060,13 +722,6 @@
                             },
                             "/etc/puppet/manifests/site.pp" : {
                                 "content" : { "Fn::Join" : ["", [
-                                    "class toolbox {\n",
-                                    "        file { '/usr/local/sbin/puppetsimple.sh':\n",
-                                    "                owner => root, group => root, mode => 0755,\n",
-                                    "                content => \"#!/bin/sh\\npuppet agent --onetime --no-daemonize --verbose $1\",\n",
-                                    "        }\n",
-                                    "}\n",
-
                                     "service { 'httpd':\n",
                                     "    ensure  => 'running',\n",
                                     "    enable  => true,\n",
@@ -1084,24 +739,15 @@
                                     "                notify       => Service['httpd'],\n",
                                     "                owner        => root,\n",
                                     "                path         => '/etc/httpd/conf.d',\n",
+                                    "                purge        => true,\n",
                                     "                recurse      => true,\n",
+                                    "                replace      => true,\n",
                                     "                source       => 'puppet:///files/sites'\n",
                                     "        }\n",
                                     "}\n",
 
-                                    "node 'web1.internal.adire.co.uk' {\n",
+                                    "node /^web([0-9]+)\\.internal\\.adire\\.co\\.uk$/ {\n",
                                     "        include sites\n",
-                                    "        include toolbox\n",
-                                    "}\n",
-                                    
-                                    "node 'web2.internal.adire.co.uk' {\n",
-                                    "        include sites\n",
-                                    "        include toolbox\n",
-                                    "}\n",
-                                    
-                                    "node 'web3.internal.adire.co.uk' {\n",
-                                    "        include sites\n",
-                                    "        include toolbox\n",
                                     "}\n"
                                 ]] },
                                 "mode" : "000644",
@@ -1134,7 +780,10 @@
                             "02_unpack_web_dir" : {
                                 "command" : "tar -zxf /tmp/latest-web-directory.tar.gz ; rm /tmp/latest-web-directory.tar.gz"
                             },
-                            "03_permissions" : {
+                            "03_unpack_apacheconfig_dir" : {
+                                "command" : "tar -zxf /tmp/sites.tar.gz ; rm /tmp/sites.tar.gz"
+                            },
+                            "04_permissions" : {
                                 "command" : {
                                     "Fn::Join" : [
                                         "",
@@ -1145,7 +794,7 @@
                                     ]
                                 }
                             },
-                            "04_packages" : {
+                            "05_packages" : {
                                 "command" : "yum -y update"
                             }
                         },
@@ -1362,7 +1011,7 @@
           "Type" : "AWS::Route53::RecordSet",
           "Properties" : {
              "HostedZoneName" : "adire.co.uk.",
-             "Comment" : "AWS adire hosting platform.",  
+             "Comment" : "AWS adire hosting platform.",
              "Name" : {"Fn::Join" : ["",[{"Ref" : "ParamTest"},"application-hostingplatform.adire.co.uk."]]},
              "Type" : "CNAME",
              "TTL" : "300",
