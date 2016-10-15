@@ -26,6 +26,11 @@
         "ParamKeyName"          : {
             "Type" : "AWS::EC2::KeyPair::KeyName",
             "Description" : "Name of an existing EC2 key pair to enable SSH access to the ECS instances"
+        },
+        "ParamTest" : {
+            "Default"       : "test-",
+            "Description"   : "If live environment, change to empty string",
+            "Type"          : "String"
         }
     },
     "Mappings"                 : {
@@ -1353,12 +1358,26 @@
            }
         },
         
-        "DNSRecord" : {
+        "DNSRecordWWW" : {
           "Type" : "AWS::Route53::RecordSet",
           "Properties" : {
              "HostedZoneName" : "adire.co.uk.",
              "Comment" : "AWS adire hosting platform.",  
-             "Name" : "application-hostingplatform.adire.co.uk.",
+             "Name" : {"Fn::Join" : ["",[{"Ref" : "ParamTest"},"application-hostingplatform.adire.co.uk."]]},
+             "Type" : "CNAME",
+             "TTL" : "300",
+             "ResourceRecords" : [
+                { "Fn::GetAtt":["ElasticLoadBalancer","DNSName"] }
+             ]
+          }
+        },
+        
+        "DNSRecordFTP" : {
+          "Type" : "AWS::Route53::RecordSet",
+          "Properties" : {
+             "HostedZoneName" : "adire.co.uk.",
+             "Comment" : "FTP for AWS adire hosting platform.",  
+             "Name" : {"Fn::Join" : ["",[{"Ref" : "ParamTest"},"ftp2.adire.co.uk."]]},
              "Type" : "CNAME",
              "TTL" : "300",
              "ResourceRecords" : [
