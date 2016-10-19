@@ -469,7 +469,7 @@
                         "IpProtocol" : "tcp",
                         "FromPort"   : "2049",
                         "ToPort"     : "2049",
-                        "CidrIp"     : "CidrIp"     : "10.0.0.0/16"
+                        "CidrIp"     : "10.0.0.0/16"
                     }
                 ],
                 "Tags"                 : [
