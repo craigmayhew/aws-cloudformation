@@ -608,9 +608,11 @@
                     "config" : {
                         "packages" : {
                             "yum" : {
+                                "git": [],
                                 "php70": [],
                                 "php70-mysqlnd": [],
-                                "puppet-server": []
+                                "puppet-server": [],
+                                "python27-devel": []
                             }
                         },
                         "files"  : {
@@ -622,18 +624,33 @@
                                 "mode" : "600",
                                 "source" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/backups-webdirectory/latest.tar.gz"
                             },
-                            "/etc/cron.d/backup": {
+                            "/etc/cron.d/backupandletsencrypt": {
                                 "content": { 
                                     "Fn::Join": [
-                                        "",
+                                        "\n",
                                         [
                                         "0 * * * * root cd /root/ && php efs-backup.php",
+                                        "0 0 1,15 * * /opt/letsencrypt/letsencrypt-auto renew --config /etc/letsencrypt/config.ini --agree-tos",
                                         "\n"
                                         ]
                                     ]
                                 },
                                 "group": "root", 
                                 "mode": "000644", 
+                                "owner": "root"
+                            },
+                            "/etc/letsencrypt/config.ini" : {
+                                "content": { 
+                                    "Fn::Join": [
+                                        "\n",
+                                        [
+                                            "rsa-key-size = 4096",
+                                            "email = admin@adire.co.uk"
+                                        ]
+                                    ]
+                                },
+                                "group": "root", 
+                                "mode": "000600", 
                                 "owner": "root"
                             },
                             "/root/.aws/credentials" : {
@@ -725,7 +742,7 @@
                                             "    'Bucket'     => BUCKET,",
                                             "    'Key'        => $backup['s3key'],",
                                             "    'SourceFile' => $backup['archive']",
-                                          "));",
+                                            "));",
                                         "}",
                                       "}"
                                       
@@ -823,7 +840,10 @@
                                     ]
                                 }
                             },
-                            "05_packages" : {
+                            "05_lets_encrypt" : {
+                                "command" : "git clone https://github.com/letsencrypt/letsencrypt /opt/letsencrypt && /opt/letsencrypt/letsencrypt-auto --debug"
+                            },
+                            "06_packages" : {
                                 "command" : "yum -y update"
                             }
                         },
@@ -1105,4 +1125,4 @@
             "Description" : "URL for newly created website hosting service"
         }
     }
-}
+}	
