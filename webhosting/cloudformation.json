@@ -175,6 +175,7 @@
                             "yum" : {
                                 "php70": [],
                                 "php70-mysqlnd": [],
+                                "php70-bcmath": [],
                                 "puppet": []
                             }
                         },
@@ -611,6 +612,7 @@
                                 "git": [],
                                 "php70": [],
                                 "php70-mysqlnd": [],
+                                "php70-bcmath": [],
                                 "puppet-server": [],
                                 "python27-devel": []
                             }
@@ -717,7 +719,7 @@
                                             "if ($filename != '.' && $filename != '..') {",
                                               "$name = $folder.'/'.$filename;",
                                               "if (filemtime($name) > $mtime) {",
-                                                    return true;",
+                                                    "return true;",
                                               "}",
                                               "if (is_dir($name)) {",
                                                 "$check = scandir_by_mtime($name, $mtime);",
@@ -1125,4 +1127,4 @@
             "Description" : "URL for newly created website hosting service"
         }
     }
-}	
+}
