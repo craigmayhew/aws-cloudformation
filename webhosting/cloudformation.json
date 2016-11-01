@@ -36,15 +36,13 @@
         "ParamKeyName"          : {
             "Type" : "AWS::EC2::KeyPair::KeyName",
             "Description" : "Name of an existing EC2 key pair to enable SSH access to the ECS instances"
-        },
-        "ParamDNSPrefix" : {
-            "Default"       : "currentdate-",
-            "Description"   : "To ensure if you bring a live and a test environment up, the DNS entrie remains unique",
-            "Type"          : "String"
         }
     },
     "Mappings"                 : {
         "AWSInstanceType2Arch" : {
+            "t2.micro"  : {
+                "Arch" : "64"
+            },
             "m4.large"  : {
                 "Arch" : "64"
             },
