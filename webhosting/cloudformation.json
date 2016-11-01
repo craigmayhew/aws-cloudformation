@@ -225,7 +225,7 @@
                             "04_delete_default_httpd_configs" : {
                                 "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
                             },
-                            "06_packages" : {
+                            "05_packages" : {
                                 "command" : "yum -y update"
                             }
                         },
