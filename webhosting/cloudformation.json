@@ -5,9 +5,8 @@
         "ParamInstanceType" : {
             "Description" : "WebServer EC2 instance type",
             "Type"        : "String",
-            "Default"     : "m3.medium",
+            "Default"     : "m4.large",
             "AllowedValues" : [
-                "m3.medium",
                 "m4.large",
                 "m4.xlarge",
                 "m4.2xlarge",
