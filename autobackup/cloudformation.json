@@ -1,0 +1,517 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Generate a VPC, Security Group, VM.",
+    "Parameters"               : {
+        "ParamInstanceType" : {
+            "Description" : "Backup EC2 instance",
+            "Type"        : "String",
+            "Default"     : "t2.micro",
+            "AllowedValues" : [
+                "t2.micro",
+                "m4.large",
+                "m4.xlarge"
+            ],
+            "ConstraintDescription" : "must be a valid EC2 instance type."
+        },
+        "ParamWebDirToBackup" : {
+            "Default"       : "/var/backups/localhost",
+            "Type"          : "String"
+        },
+        "ParamKeyName"          : {
+            "Type" : "AWS::EC2::KeyPair::KeyName",
+            "Description" : "Name of an existing EC2 key pair to enable SSH access to the ECS instances"
+        },
+        "ParamYorkVMURL" : {
+            "Default"       : "york.adire.co.uk",
+            "Description"   : "To ensure if you bring a live and a test environment up, the DNS entrie remains unique",
+            "Type"          : "String"
+        },
+        "ParamS3Bucket" : {
+            "Default"       : "application-autobackups",
+            "Description"   : "S3 bucket to place backups in",
+            "Type"          : "String"
+        }
+    },
+    "Mappings"                 : {
+        "AWSInstanceType2Arch" : {
+            "t2.micro"  : {
+                "Arch" : "64"
+            },
+            "m4.large"  : {
+                "Arch" : "64"
+            },
+            "m4.xlarge" : {
+                "Arch" : "64"
+            },
+            "m4.2xlarge" : {
+                "Arch" : "64"
+            },
+            "c4.2xlarge"  : {
+                "Arch" : "64"
+            },
+            "c4.4xlarge" : {
+                "Arch" : "64"
+            }
+        },
+        "AWSRegionArch2AMI"    : {
+            "us-east-1" : {
+                "64" : "ami-6869aa05"
+            },
+            "eu-west-1" : {
+                "64" : "ami-f9dd458a"
+            }
+        }
+    },
+    "Resources"                : {
+        "backerUpper" : {
+            "Type" : "AWS::EC2::VPC",
+            "Properties" : {
+                "CidrBlock" : "10.0.0.0/16",
+                "EnableDnsSupport" : "true",
+                "EnableDnsHostnames" : "true",
+                "InstanceTenancy"    : "default",
+                "Tags"               : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+                        "Key" : "Name",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ]
+            }
+        },
+        "SubnetId"               : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : {"Ref" : "AWS::Region"},
+                "CidrBlock"        : "10.0.0.0/24",
+                "MapPublicIpOnLaunch" : "true",
+                "Tags"                : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ],
+                "VpcId"               : {
+                    "Ref" : "backerUpper"
+                }
+            }
+        },
+        "SecurityGroup"  : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Enable SSH",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "22",
+                        "ToPort"     : "22",
+                        "CidrIp"     : "0.0.0.0/0"
+                    }
+                ],
+                "VpcId"                : {
+                    "Ref" : "backerUpper"
+                }
+            }
+        },
+        "WaitHandle"              : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "WaitCondition"           : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "Properties" : {
+                "Handle" : {
+                    "Ref" : "WaitHandle"
+                },
+                "Timeout" : "600"
+            }
+        },
+        "InternetGateway"         : {
+            "Type" : "AWS::EC2::InternetGateway",
+            "Properties" : {
+                "Tags" : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "AttachGateway"           : {
+            "DependsOn" : "InternetGateway",
+            "Type"      : "AWS::EC2::VPCGatewayAttachment",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "backerUpper"
+                },
+                "InternetGatewayId" : {
+                    "Ref" : "InternetGateway"
+                }
+            }
+        },
+        "MyRouteTable"            : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "backerUpper"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "Route"                   : {
+            "Type" : "AWS::EC2::Route",
+            "DependsOn" : [
+                "AttachGateway",
+                "MyRouteTable"
+            ],
+            "Properties" : {
+                "RouteTableId" : {
+                    "Ref" : "MyRouteTable"
+                },
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "GatewayId"            : {
+                    "Ref" : "InternetGateway"
+                }
+            }
+        },
+        "SubnetRouteTableAssociation" : {
+            "DependsOn" : [
+                "SubnetId",
+                "MyRouteTable"
+            ],
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "SubnetId"
+                },
+                "RouteTableId" : {
+                    "Ref" : "MyRouteTable"
+                }
+            },
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "backupServer"                    : {
+            "Type" : "AWS::EC2::Instance",
+            "Metadata" : {
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                        "packages" : {
+                            "yum" : {
+                                "git": [],
+                                "php70": []
+                            }
+                        },
+                        "files"  : {
+                            "/etc/cron.d/backupandletsencrypt": {
+                                "content": { 
+                                    "Fn::Join": [
+                                        "\n",
+                                        [
+                                        "0 * * * * root cd /root/ && php backup.php",
+                                        "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root", 
+                                "mode": "000644", 
+                                "owner": "root"
+                            },
+                            "/root/.aws/credentials" : {
+                                "content": { 
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                          "[application-webhosting]\n",
+                                          "aws_access_key_id = ",{"Ref" : "IAMAccessKey"},"\n",
+                                          "aws_secret_access_key = ",{"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]}
+                                        ]
+                                    ]
+                                },
+                                "group": "root", 
+                                "mode": "000600", 
+                                "owner": "root"
+                            },
+                            "/root/backup.php": {
+                                "mode" : "600",
+                                "content": {
+                                    "Fn::Join" : [
+                                      "\n",
+                                      ["<?php",
+
+                                      "exec('cd /root/');",
+                                      "exec('curl -sS https://getcomposer.org/installer | php');",
+                                      "file_put_contents('/root/composer.json','{",
+                                      "    \"require\": {",
+                                      "        \"aws/aws-sdk-php\": \"2.*\"",
+                                      "    }",
+                                      "}');",
+                                      "exec('php composer.phar install');",
+                                      
+                                      "require '/root/vendor/autoload.php';",
+                                      
+                                      "use Aws\\S3\\S3Client;",
+                                      
+                                      "const BUCKET = '",{"Ref" : "ParamS3Bucket"},"';",
+                                      
+                                      "$config = [",
+                                            "[",
+                                                "'archive' => '/tmp/latest-web-directory.tar.gz',",
+                                                "'folder' => '/srv',",
+                                                "'s3key' => 'backups-webdirectory/latest.tar.gz'",
+                                            "]"
+                                      "];",
+                                      
+                                      "//load profile into client object",
+                                      "$client = S3Client::factory(array(",
+                                      "    'profile' => BUCKET",
+                                      "));",
+                                      
+                                      "function scandir_by_mtime($folder, $mtime) {",
+                                          "$dircontent = scandir($folder);",
+                                          "foreach($dircontent as $filename) {",
+                                            "if ($filename != '.' && $filename != '..') {",
+                                              "$name = $folder.'/'.$filename;",
+                                              "if (filemtime($name) > $mtime) {",
+                                                    "return true;",
+                                              "}",
+                                              "if (is_dir($name)) {",
+                                                "$check = scandir_by_mtime($name, $mtime);",
+                                                "if ($check) {",
+                                                    "return true;",
+                                                "}",
+                                              "}",
+                                            "}",
+                                          "}",
+                                          "return false;",
+                                        "}",
+                                        
+                                      "foreach ($config as $backup) {",
+                                        "//if files have been modified since our last backup",
+                                        "if (!file_exists($backup['archive']) || scandir_by_mtime($backup['folder'], filemtime($backup['archive']))) {",
+                                            "//move old local backups and create new",
+                                            "exec('mv '.$backup['archive'].' '.$backup['archive'].'.previous');",
+                                            "exec('tar -czvf '.$backup['archive'].' '.$backup['folder']);",
+                                            
+                                            "//upload to s3",
+                                            "$result = $client->putObject(array(",
+                                            "    'Bucket'     => BUCKET,",
+                                            "    'Key'        => $backup['s3key'],",
+                                            "    'SourceFile' => $backup['archive']",
+                                            "));",
+                                        "}",
+                                      "}"
+                                      
+                                      ]
+                                    ]
+                                }
+                            }
+                        },
+                        "commands" : {
+                            "01_packages" : {
+                                "command" : "yum -y update"
+                            }
+                        }
+                    }
+                },
+                "AWS::CloudFormation::Authentication" : {
+                    "S3" : {
+                        "type" : "S3",
+                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
+                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
+                        "buckets"     : [{"Ref" : "ParamS3Bucket"}]
+                    }
+                }
+            },
+            "Properties" : {
+                "ImageId" : {
+                    "Fn::FindInMap" : [
+                        "AWSRegionArch2AMI",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap" : [
+                                "AWSInstanceType2Arch",
+                                {
+                                    "Ref" : "ParamInstanceType"
+                                },
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceType" : {"Ref" : "ParamInstanceType"},
+                "KeyName"      : {"Ref" : "ParamKeyName"},
+                "NetworkInterfaces" : [
+                    {
+                        "GroupSet" : [
+                            {
+                                "Ref" : "SecurityGroup"
+                            }
+                        ],
+                        "AssociatePublicIpAddress" : "true",
+                        "DeviceIndex"              : "0",
+                        "DeleteOnTermination"      : "true",
+                        "SubnetId"                 : {
+                            "Ref" : "SubnetIdA"
+                        }
+                    }
+                ],
+                "Tags"              : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+                        "Key" : "Name",
+                        "Value" : {"Fn::Join" : [
+                            "",
+                            [{"Ref" : "AWS::StackName"},": Backup Runner"]
+                        ]}
+                    }
+                ],
+                "UserData"          : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "#!/bin/bash -v\n",
+                                "yum update -y aws-cfn-bootstrap\n",
+                                "# nfs-utils is used by EFS mount command\n",
+                                "yum install -y nfs-utils\n",
+                                "# Helper function\n",
+                                "function error_exit\n",
+                                "{\n",
+                                "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n",
+                                "  exit 1\n",
+                                "}\n",
+                                "# Install LAP packages\n",
+                                "/opt/aws/bin/cfn-init -s ",
+                                {
+                                    "Ref" : "AWS::StackId"
+                                },
+                                " -r backupServer --region ",
+                                {
+                                    "Ref" : "AWS::Region"
+                                },
+                                " || error_exit 'Failed to run cfn-init on backup Server'\n",
+                                "# Web dir is /srv/\n",
+                                "# All is well so signal success\n",
+                                "/opt/aws/bin/cfn-signal -e 0 -r \"LAP Stack setup complete\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+        "YorkAdireHealthCheck": {
+          "Type": "AWS::Route53::HealthCheck",
+          "Properties": {
+            "HealthCheckConfig": {
+              "Port": "80",
+              "Type": "HTTP",
+              "ResourcePath": "/",
+              "FullyQualifiedDomainName": {"Ref" : "ParamYorkVMURL"},
+              "RequestInterval": "30",
+              "FailureThreshold": "3"
+            },
+            "HealthCheckTags" : [{
+              "Key" : "Application",
+              "Value" : {
+                "Ref" : "AWS::StackName"
+              }
+            }]
+          }
+        },
+        "IAMGroup": {
+          "Type": "AWS::IAM::Group",
+          "Properties": {
+            "GroupName": {
+                "Ref" : "AWS::StackName"
+            }
+          }
+        },
+        "IAMPolicy": {
+            "DependsOn": [ "IAMGroup" ],
+            "Type": "AWS::IAM::Policy",
+            "Properties" : {
+              "Groups" : [{
+                "Ref" : "AWS::StackName"
+              }],
+              "PolicyName" : {
+                "Ref" : "AWS::StackName"
+              },
+              "PolicyDocument" : {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:ListBucket"
+                            ],
+                            "Resource": [
+                                { "Fn::Join" : ["", ["arn:aws:s3:::",{"Ref" : "ParamS3Bucket"}]] }
+                            ]
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:GetObject",
+                                "s3:PutObject"
+                            ],
+                            "Resource": [
+                                { "Fn::Join" : ["", ["arn:aws:s3:::",{"Ref" : "ParamS3Bucket"},"/*"]] }
+                            ]
+                        }
+                    ]
+              }
+            }
+        },
+        "IAMUser": {
+            "DependsOn": [ "IAMGroup" ],
+            "Type": "AWS::IAM::User",
+            "Properties": {
+                "Groups" : [{
+                    "Ref" : "AWS::StackName"
+                }]
+            }
+        },
+        "IAMAccessKey": {
+            "DependsOn": [ "IAMUser" ],
+           "Type": "AWS::IAM::AccessKey",
+           "Properties": {
+              "UserName": {"Ref" : "IAMUser"}
+           }
+        }
+    },
+    "Outputs"                  : {
+        "Example" : {
+            "Value" : "",
+            "Description" : ""
+        }
+    }
+}
