@@ -15,6 +15,17 @@
             ],
             "ConstraintDescription" : "must be a valid EC2 instance type."
         },
+        "ParamInstanceBastion" : {
+            "Description" : "Bastion EC2 instance type",
+            "Type"        : "String",
+            "Default"     : "t2.micro",
+            "AllowedValues" : [
+                "t2.micro",
+                "m4.large",
+                "m4.xlarge"
+            ],
+            "ConstraintDescription" : "must be a valid EC2 instance type."
+        },
         "ParamWebDirMountPoint" : {
             "AllowedValues" : [
                 "/srv"
@@ -878,7 +889,7 @@
                         }
                     ]
                 },
-                "InstanceType" : {"Ref" : "ParamInstanceType"},
+                "InstanceType" : {"Ref" : "ParamInstanceBastion"},
                 "KeyName"      : {"Ref" : "ParamKeyName"},
                 "NetworkInterfaces" : [
                     {
@@ -1068,7 +1079,7 @@
           "Type" : "AWS::Route53::RecordSet",
           "Properties" : {
              "HostedZoneName" : "adire.co.uk.",
-             "Comment" : "FTP for AWS adire hosting platform.",  
+             "Comment" : "Bastion for AWS adire hosting platform.",  
              "Name" : {"Fn::Join" : ["",[{"Ref" : "ParamTest"},"ftp2.adire.co.uk."]]},
              "Type" : "CNAME",
              "TTL" : "300",
