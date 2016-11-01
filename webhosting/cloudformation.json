@@ -1,6 +1,6 @@
 {
     "AWSTemplateFormatVersion" : "2010-09-09",
-    "Description"              : "Generate a VPC, Security Groups, Apache Webserver, EFS (For customer website data).",
+    "Description"              : "Generate a VPC, Auto Scaling Groups, EFS, Security Groups, DNS.",
     "Parameters"               : {
         "ParamInstanceType" : {
             "Description" : "WebServer EC2 instance type",
@@ -173,9 +173,125 @@
                 }
             }
         },
+        "WebServerScaleUpPolicy" : {
+          "Type" : "AWS::AutoScaling::ScalingPolicy",
+          "Properties" : {
+            "AdjustmentType" : "ChangeInCapacity",
+            "AutoScalingGroupName" : { "Ref" : "AutoScaler" },
+            "Cooldown" : "60",
+            "ScalingAdjustment" : "1"
+          }
+        },
+        "WebServerScaleDownPolicy" : {
+          "Type" : "AWS::AutoScaling::ScalingPolicy",
+          "Properties" : {
+            "AdjustmentType" : "ChangeInCapacity",
+            "AutoScalingGroupName" : { "Ref" : "AutoScaler" },
+            "Cooldown" : "60",
+            "ScalingAdjustment" : "-1"
+          }
+        },
+        "CPUAlarmHigh": {
+         "Type": "AWS::CloudWatch::Alarm",
+         "Properties": {
+            "AlarmDescription": "Scale-up if CPU > 80% for 4 minutes",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/EC2",
+            "Statistic": "Average",
+            "Period": "120",
+            "EvaluationPeriods": "2",
+            "Threshold": "80",
+            "AlarmActions": [ { "Ref": "WebServerScaleUpPolicy" } ],
+            "Dimensions": [
+              {
+                "Name": "AutoScalingGroupName",
+                "Value": { "Ref": "AutoScaler" }
+              }
+            ],
+            "ComparisonOperator": "GreaterThanThreshold"
+          }
+        },
+        "CPUAlarmLow": {
+         "Type": "AWS::CloudWatch::Alarm",
+         "Properties": {
+            "AlarmDescription": "Scale-down if CPU < 50% for 10 minutes",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/EC2",
+            "Statistic": "Average",
+            "Period": "300",
+            "EvaluationPeriods": "2",
+            "Threshold": "50",
+            "AlarmActions": [ { "Ref": "WebServerScaleDownPolicy" } ],
+            "Dimensions": [
+              {
+                "Name": "AutoScalingGroupName",
+                "Value": { "Ref": "AutoScaler" }
+              }
+            ],
+            "ComparisonOperator": "LessThanThreshold"
+          }
+        },
+        "WebServerScaleUpPolicySpot" : {
+          "Type" : "AWS::AutoScaling::ScalingPolicy",
+          "Properties" : {
+            "AdjustmentType" : "ChangeInCapacity",
+            "AutoScalingGroupName" : { "Ref" : "AutoScalerSpot" },
+            "Cooldown" : "60",
+            "ScalingAdjustment" : "1"
+          }
+        },
+        "WebServerScaleDownPolicySpot" : {
+          "Type" : "AWS::AutoScaling::ScalingPolicy",
+          "Properties" : {
+            "AdjustmentType" : "ChangeInCapacity",
+            "AutoScalingGroupName" : { "Ref" : "AutoScalerSpot" },
+            "Cooldown" : "60",
+            "ScalingAdjustment" : "-1"
+          }
+        },
+        "CPUAlarmHighSpot": {
+         "Type": "AWS::CloudWatch::Alarm",
+         "Properties": {
+            "AlarmDescription": "Scale-up if CPU > 50% for 4 minutes",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/EC2",
+            "Statistic": "Average",
+            "Period": "120",
+            "EvaluationPeriods": "2",
+            "Threshold": "50",
+            "AlarmActions": [ { "Ref": "WebServerScaleUpPolicySpot" } ],
+            "Dimensions": [
+              {
+                "Name": "AutoScalingGroupName",
+                "Value": { "Ref": "AutoScalerSpot" }
+              }
+            ],
+            "ComparisonOperator": "GreaterThanThreshold"
+          }
+        },
+        "CPUAlarmLowSpot": {
+         "Type": "AWS::CloudWatch::Alarm",
+         "Properties": {
+            "AlarmDescription": "Scale-down if CPU < 30% for 10 minutes",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/EC2",
+            "Statistic": "Average",
+            "Period": "300",
+            "EvaluationPeriods": "2",
+            "Threshold": "30",
+            "AlarmActions": [ { "Ref": "WebServerScaleDownPolicySpot" } ],
+            "Dimensions": [
+              {
+                "Name": "AutoScalingGroupName",
+                "Value": { "Ref": "AutoScalerSpot" }
+              }
+            ],
+            "ComparisonOperator": "LessThanThreshold"
+          }
+        },
         "AutoScalerConfig": {
-           "Type" : "AWS::AutoScaling::LaunchConfiguration",
-           "Metadata" : {
+            "Type" : "AWS::AutoScaling::LaunchConfiguration",
+            "Metadata" : { 
                 "AWS::CloudFormation::Init" : {
                     "config" : {
                         "packages" : {
@@ -331,12 +447,206 @@
            "Properties" : {
               "AvailabilityZones" : { "Fn::GetAZs" : "" },
               "Cooldown" : "300",
-              "DesiredCapacity" : "2",
+              "DesiredCapacity" : "1",
               "HealthCheckGracePeriod" : "180",
               "HealthCheckType" : "ELB",
               "LaunchConfigurationName" : {"Ref" : "AutoScalerConfig"},
               "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
               "MaxSize" : "6",
+              "MetricsCollection": [
+                 {
+                    "Granularity": "1Minute",
+                    "Metrics": [
+                       "GroupMinSize",
+                       "GroupMaxSize"
+                    ]
+                 }
+              ],
+              "MinSize" : "1",
+              "Tags"                 : [
+                    {
+                        "Key" : "Application",
+                        "PropagateAtLaunch" : true,
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+                        "Key" : "Name",
+                        "PropagateAtLaunch" : true,
+                        "Value" : {"Fn::Join" : [
+                            "",
+                            [{"Ref" : "AWS::StackName"},": Web"]
+                        ]}
+                    }
+              ],
+              "VPCZoneIdentifier" : [ {"Ref" : "SubnetIdA"}, {"Ref" : "SubnetIdB"}, {"Ref" : "SubnetIdC"} ]
+           }
+        },
+        "AutoScalerConfigSpot": {
+            "Type" : "AWS::AutoScaling::LaunchConfiguration",
+            "Metadata" : {
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                        "packages" : {
+                            "yum" : {
+                                "php70": [],
+                                "php70-mysqlnd": [],
+                                "php70-bcmath": [],
+                                "puppet": []
+                            }
+                        },
+                        "files" : {
+                            "/etc/puppet/puppet.conf" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "[main]\n",
+                                    " logdir=/var/log/puppet\n",
+                                    " rundir=/var/run/puppet\n",
+                                    " ssldir=$vardir/ssl\n",
+                                    " pluginsync=true\n",
+                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
+                                    "[agent]\n",
+                                    " classfile=$vardir/classes.txt\n",
+                                    " localconfig=$vardir/localconfig\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
+                            }
+                        },
+                        "commands" : {
+                            "01_mount" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
+                                            {
+                                                "Ref" : "WebServerEFSFileSystem"
+                                            },
+                                            ".efs.",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            ".amazonaws.com:/ ",
+                                            {
+                                                "Ref" : "ParamWebDirMountPoint"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "03_hostname" : {
+                                "command" : "sudo hostname web`date +%s%N`.internal.adire.co.uk"
+                            },
+                            "04_delete_default_httpd_configs" : {
+                                "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
+                            },
+                            "05_packages" : {
+                                "command" : "yum -y update"
+                            }
+                        },
+                        "services" : {
+                            "sysvinit" : {
+                                "httpd" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                },
+                                "puppet" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                }
+                            }
+                        }
+                    }
+                },
+                "AWS::CloudFormation::Authentication" : {
+                    "S3" : {
+                        "type" : "S3",
+                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
+                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
+                        "buckets"     : ["application-webhosting"]
+                    }
+                }
+            },
+            "Properties" : {
+                "AssociatePublicIpAddress" : "true",
+                "EbsOptimized" : false,
+                "ImageId" : {
+                    "Fn::FindInMap" : [
+                        "AWSRegionArch2AMI",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap" : [
+                                "AWSInstanceType2Arch",
+                                {
+                                    "Ref" : "ParamInstanceType"
+                                },
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceMonitoring" : true,
+                "InstanceType" : {"Ref" : "ParamInstanceType"},
+                "KeyName"      : {"Ref" : "ParamKeyName"},
+                "SpotPrice"    : "0.07",
+                "UserData"          : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "#!/bin/bash -v\n",
+                                "yum update -y aws-cfn-bootstrap\n",
+                                "# nfs-utils is used by EFS mount command\n",
+                                "yum install -y nfs-utils\n",
+                                "# Helper function\n",
+                                "function error_exit\n",
+                                "{\n",
+                                "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n",
+                                "  exit 1\n",
+                                "}\n",
+                                "# Install LAP packages\n",
+                                "/opt/aws/bin/cfn-init --stack ",
+                                {
+                                    "Ref" : "AWS::StackId"
+                                },
+                                " --resource AutoScalerConfigSpot --region ",
+                                {
+                                    "Ref" : "AWS::Region"
+                                },
+                                " || error_exit 'Failed to run cfn-init on WebVM'\n",
+                                "# Web dir is /srv/\n",
+                                "# All is well so signal success\n",
+                                "/opt/aws/bin/cfn-signal -e 0 -r \"LAP Stack setup complete\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n"
+                            ]
+                        ]
+                    }
+                },
+              "SecurityGroups" : [ { "Ref" : "SecurityGroupFileSystem" } , {"Ref" : "WebServerSecurityGroup"}]
+            }
+        },
+        "AutoScalerSpot": {
+           "Type" : "AWS::AutoScaling::AutoScalingGroup",
+           "DependsOn": "CandCServer",
+           "Properties" : {
+              "AvailabilityZones" : { "Fn::GetAZs" : "" },
+              "Cooldown" : "300",
+              "DesiredCapacity" : "2",
+              "HealthCheckGracePeriod" : "180",
+              "HealthCheckType" : "ELB",
+              "LaunchConfigurationName" : {"Ref" : "AutoScalerConfigSpot"},
+              "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+              "MaxSize" : "12",
               "MetricsCollection": [
                  {
                     "Granularity": "1Minute",
@@ -359,7 +669,7 @@
                         "PropagateAtLaunch" : true,
                         "Value" : {"Fn::Join" : [
                             "",
-                            [{"Ref" : "AWS::StackName"},": Web"]
+                            [{"Ref" : "AWS::StackName"},": Web (spot)"]
                         ]}
                     }
               ],
