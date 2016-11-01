@@ -34,9 +34,6 @@
     },
     "Mappings"                 : {
         "AWSInstanceType2Arch" : {
-            "m3.medium" : {
-                "Arch" : "64"
-            },
             "m4.large"  : {
                 "Arch" : "64"
             },
