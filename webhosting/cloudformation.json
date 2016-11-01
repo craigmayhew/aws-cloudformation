@@ -37,9 +37,9 @@
             "Type" : "AWS::EC2::KeyPair::KeyName",
             "Description" : "Name of an existing EC2 key pair to enable SSH access to the ECS instances"
         },
-        "ParamTest" : {
-            "Default"       : "test-",
-            "Description"   : "If live environment, change to empty string",
+        "ParamDNSPrefix" : {
+            "Default"       : "currentdate-",
+            "Description"   : "To ensure if you bring a live and a test environment up, the DNS entrie remains unique",
             "Type"          : "String"
         }
     },
@@ -1066,7 +1066,7 @@
           "Properties" : {
              "HostedZoneName" : "adire.co.uk.",
              "Comment" : "AWS adire hosting platform.",
-             "Name" : {"Fn::Join" : ["",[{"Ref" : "ParamTest"},"application-hostingplatform.adire.co.uk."]]},
+             "Name" : {"Fn::Join" : ["",[{"Ref" : "ParamDNSPrefix"},"application-hostingplatform.adire.co.uk."]]},
              "Type" : "CNAME",
              "TTL" : "300",
              "ResourceRecords" : [
@@ -1075,16 +1075,16 @@
           }
         },
         
-        "DNSRecordFTP" : {
+        "DNSRecordBastion" : {
           "Type" : "AWS::Route53::RecordSet",
           "Properties" : {
              "HostedZoneName" : "adire.co.uk.",
              "Comment" : "Bastion for AWS adire hosting platform.",  
-             "Name" : {"Fn::Join" : ["",[{"Ref" : "ParamTest"},"ftp2.adire.co.uk."]]},
+             "Name" : {"Fn::Join" : ["",[{"Ref" : "ParamDNSPrefix"},"bastion.adire.co.uk."]]},
              "Type" : "CNAME",
              "TTL" : "300",
              "ResourceRecords" : [
-                { "Fn::GetAtt":["ElasticLoadBalancer","DNSName"] }
+                { "Fn::GetAtt":["CandCServer","PublicDnsName"] }
              ]
           }
         }
