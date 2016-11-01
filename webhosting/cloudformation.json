@@ -842,10 +842,7 @@
                                     ]
                                 }
                             },
-                            "05_lets_encrypt" : {
-                                "command" : "git clone https://github.com/letsencrypt/letsencrypt /opt/letsencrypt && /opt/letsencrypt/letsencrypt-auto --debug"
-                            },
-                            "06_packages" : {
+                            "05_packages" : {
                                 "command" : "yum -y update"
                             }
                         },
