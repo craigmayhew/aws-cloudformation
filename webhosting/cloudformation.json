@@ -5,17 +5,32 @@
         "ParamInstanceType" : {
             "Description" : "WebServer EC2 instance type",
             "Type"        : "String",
-            "Default"     : "m4.large",
+            "Default"     : "c4.large",
             "AllowedValues" : [
                 "m4.large",
                 "m4.xlarge",
                 "m4.2xlarge",
+                "c4.large",
                 "c4.2xlarge",
                 "c4.4xlarge"
             ],
             "ConstraintDescription" : "must be a valid EC2 instance type."
         },
-        "ParamInstanceBastion" : {
+        "ParamInstanceTypeSpot" : {
+            "Description" : "WebServer EC2 instance type",
+            "Type"        : "String",
+            "Default"     : "m4.large",
+            "AllowedValues" : [
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "c4.large",
+                "c4.2xlarge",
+                "c4.4xlarge"
+            ],
+            "ConstraintDescription" : "must be a valid EC2 instance type."
+        },
+        "ParamInstanceTypeBastion" : {
             "Description" : "Bastion EC2 instance type",
             "Type"        : "String",
             "Default"     : "t2.micro",
@@ -55,6 +70,9 @@
                 "Arch" : "64"
             },
             "m4.2xlarge" : {
+                "Arch" : "64"
+            },
+            "c4.large"  : {
                 "Arch" : "64"
             },
             "c4.2xlarge"  : {
@@ -584,7 +602,7 @@
                             "Fn::FindInMap" : [
                                 "AWSInstanceType2Arch",
                                 {
-                                    "Ref" : "ParamInstanceType"
+                                    "Ref" : "ParamInstanceTypeSpot"
                                 },
                                 "Arch"
                             ]
@@ -592,7 +610,7 @@
                     ]
                 },
                 "InstanceMonitoring" : true,
-                "InstanceType" : {"Ref" : "ParamInstanceType"},
+                "InstanceType" : {"Ref" : "ParamInstanceTypeSpot"},
                 "KeyName"      : {"Ref" : "ParamKeyName"},
                 "SpotPrice"    : "0.07",
                 "UserData"          : {
@@ -1195,14 +1213,14 @@
                             "Fn::FindInMap" : [
                                 "AWSInstanceType2Arch",
                                 {
-                                    "Ref" : "ParamInstanceType"
+                                    "Ref" : "ParamInstanceTypeBastion"
                                 },
                                 "Arch"
                             ]
                         }
                     ]
                 },
-                "InstanceType" : {"Ref" : "ParamInstanceBastion"},
+                "InstanceType" : {"Ref" : "ParamInstanceTypeBastion"},
                 "KeyName"      : {"Ref" : "ParamKeyName"},
                 "NetworkInterfaces" : [
                     {
@@ -1215,7 +1233,7 @@
                         "DeviceIndex"              : "0",
                         "DeleteOnTermination"      : "true",
                         "SubnetId"                 : {
-                            "Ref" : "SubnetIdA"
+                            "Ref" : "SubnetIdB"
                         }
                     }
                 ],
