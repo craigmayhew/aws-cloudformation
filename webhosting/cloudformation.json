@@ -939,7 +939,7 @@
             "Type" : "AWS::EC2::SubnetRouteTableAssociation"
         },
         "CandCServer"                    : {
-            "DependsOn" : "EFSMountTargetA",
+            "DependsOn" : "EFSMountTargetB",
             "Type" : "AWS::EC2::Instance",
             "Metadata" : {
                 "AWS::CloudFormation::Init" : {
