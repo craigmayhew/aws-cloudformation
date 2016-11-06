@@ -317,9 +317,12 @@
                     "config" : {
                         "packages" : {
                             "yum" : {
+                                "memcached": [],
                                 "php70": [],
-                                "php70-mysqlnd": [],
                                 "php70-bcmath": [],
+                                "php70-opcache": [],
+                                "php70-mysqlnd": [],
+                                "php70-pecl-memcached": [],
                                 "puppet": []
                             }
                         },
@@ -510,9 +513,12 @@
                     "config" : {
                         "packages" : {
                             "yum" : {
+                                "memcached": [],
                                 "php70": [],
-                                "php70-mysqlnd": [],
                                 "php70-bcmath": [],
+                                "php70-opcache": [],
+                                "php70-mysqlnd": [],
+                                "php70-pecl-memcached": [],
                                 "puppet": []
                             }
                         },
@@ -948,8 +954,9 @@
                             "yum" : {
                                 "git": [],
                                 "php70": [],
-                                "php70-mysqlnd": [],
                                 "php70-bcmath": [],
+                                "php70-opcache": [],
+                                "php70-mysqlnd": [],
                                 "puppet-server": [],
                                 "python27-devel": []
                             }
