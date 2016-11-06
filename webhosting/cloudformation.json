@@ -325,16 +325,16 @@
                         },
                         "files" : {
                             "/etc/puppet/puppet.conf" : {
-                                "content" : { "Fn::Join" : ["", [
-                                    "[main]\n",
-                                    " logdir=/var/log/puppet\n",
-                                    " rundir=/var/run/puppet\n",
-                                    " ssldir=$vardir/ssl\n",
-                                    " pluginsync=true\n",
-                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
-                                    "[agent]\n",
-                                    " classfile=$vardir/classes.txt\n",
-                                    " localconfig=$vardir/localconfig\n"
+                                "content" : { "Fn::Join" : ["\n", [
+                                    "[main]",
+                                    " logdir=/var/log/puppet",
+                                    " rundir=/var/run/puppet",
+                                    " ssldir=$vardir/ssl",
+                                    " pluginsync=true",
+                                    {"Fn::Join" : ["",[" server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] }]]},
+                                    "[agent]",
+                                    " classfile=$vardir/classes.txt",
+                                    " localconfig=$vardir/localconfig"
                                 ]] },
                                 "mode" : "000644",
                                 "owner" : "root",
@@ -518,16 +518,16 @@
                         },
                         "files" : {
                             "/etc/puppet/puppet.conf" : {
-                                "content" : { "Fn::Join" : ["", [
+                                "content" : { "Fn::Join" : ["\n", [
                                     "[main]\n",
-                                    " logdir=/var/log/puppet\n",
-                                    " rundir=/var/run/puppet\n",
-                                    " ssldir=$vardir/ssl\n",
-                                    " pluginsync=true\n",
-                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
-                                    "[agent]\n",
-                                    " classfile=$vardir/classes.txt\n",
-                                    " localconfig=$vardir/localconfig\n"
+                                    " logdir=/var/log/puppet",
+                                    " rundir=/var/run/puppet",
+                                    " ssldir=$vardir/ssl",
+                                    " pluginsync=true",
+                                    {"Fn::Join" : ["",[" server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] }]]},
+                                    "[agent]",
+                                    " classfile=$vardir/classes.txt",
+                                    " localconfig=$vardir/localconfig"
                                 ]] },
                                 "mode" : "000644",
                                 "owner" : "root",
