@@ -320,6 +320,7 @@
                                 "memcached": [],
                                 "php70": [],
                                 "php70-bcmath": [],
+                                "php70-gd": [],
                                 "php70-opcache": [],
                                 "php70-mysqlnd": [],
                                 "php70-pecl-memcached": [],
@@ -509,6 +510,7 @@
                                 "memcached": [],
                                 "php70": [],
                                 "php70-bcmath": [],
+                                "php70-gd": [],
                                 "php70-opcache": [],
                                 "php70-mysqlnd": [],
                                 "php70-pecl-memcached": [],
@@ -941,6 +943,7 @@
                                 "git": [],
                                 "php70": [],
                                 "php70-bcmath": [],
+                                "php70-gd": [],
                                 "php70-opcache": [],
                                 "php70-mysqlnd": [],
                                 "puppet-server": [],
@@ -1317,7 +1320,7 @@
                                     "    enable  => true,\n",
                                     "    hasrestart => true,\n",
                                     "}\n",
-
+                                    
                                     "service { 'memcached':\n",
                                     "    ensure  => 'running',\n",
                                     "    enable  => true,\n",
