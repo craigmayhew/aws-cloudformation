@@ -1427,6 +1427,9 @@
                             },
                             "05_packages" : {
                                 "command" : "yum -y update"
+                            },
+                            "06_set_git_author": {
+                                "command" : "git config --global user.name \"Craig Mayhew\" && git config --global user.email craig@mayhew.io"
                             }
                         },
                         "services" : {
