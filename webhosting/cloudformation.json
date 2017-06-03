@@ -1,0 +1,1446 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+    "Description"              : "Generate a VPC, Auto Scaling Groups, EFS, Security Groups, DNS.",
+    "Parameters"               : {
+        "ParamInstanceType" : {
+            "Description" : "WebServer EC2 instance type",
+            "Type"        : "String",
+            "Default"     : "m4.large",
+            "AllowedValues" : [
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge"
+            ],
+            "ConstraintDescription" : "must be a valid EC2 instance type."
+        },
+        "ParamInstanceBastion" : {
+            "Description" : "Bastion EC2 instance type",
+            "Type"        : "String",
+            "Default"     : "t2.micro",
+            "AllowedValues" : [
+                "t2.micro",
+                "m4.large",
+                "m4.xlarge"
+            ],
+            "ConstraintDescription" : "must be a valid EC2 instance type."
+        },
+        "ParamWebDirMountPoint" : {
+            "AllowedValues" : [
+                "/srv"
+            ],
+            "Default"       : "/srv",
+            "Type"          : "String"
+        },
+        "ParamKeyName"          : {
+            "Type" : "AWS::EC2::KeyPair::KeyName",
+            "Description" : "Name of an existing EC2 key pair to enable SSH access to the ECS instances"
+        },
+        "ParamDNSPrefix" : {
+            "Default"       : "currentdate-",
+            "Description"   : "To ensure if you bring a live and a test environment up, the DNS entrie remains unique",
+            "Type"          : "String"
+        }
+    },
+    "Mappings"                 : {
+        "AWSInstanceType2Arch" : {
+            "t2.micro"  : {
+                "Arch" : "64"
+            },
+            "m4.large"  : {
+                "Arch" : "64"
+            },
+            "m4.xlarge" : {
+                "Arch" : "64"
+            },
+            "m4.2xlarge" : {
+                "Arch" : "64"
+            },
+            "c4.2xlarge"  : {
+                "Arch" : "64"
+            },
+            "c4.4xlarge" : {
+                "Arch" : "64"
+            }
+        },
+        "AWSRegionArch2AMI"    : {
+            "us-east-1" : {
+                "64" : "ami-6869aa05"
+            },
+            "eu-west-1" : {
+                "64" : "ami-f9dd458a"
+            }
+        }
+    },
+    "Resources"                : {
+        "ElasticLoadBalancer" : {
+          "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+          "Properties" : {
+            "Subnets" : [ { "Ref" : "SubnetIdA" },{ "Ref" : "SubnetIdB" },{ "Ref" : "SubnetIdC" } ],
+            "Listeners": [{
+              "LoadBalancerPort": "80",
+              "InstancePort": "80",
+              "Protocol": "HTTP"
+            }],
+            "HealthCheck": {
+              "Target": "HTTP:80/",
+              "HealthyThreshold": "3",
+              "UnhealthyThreshold": "3",
+              "Interval": "5",
+              "Timeout": "2"
+            },
+            "ConnectionDrainingPolicy": {
+              "Enabled" : "true",
+              "Timeout" : "60"
+            },
+            "SecurityGroups": [ { "Ref" : "WebServerSecurityGroup" } ]
+          }
+        },
+        "adireWebhostingPlatform" : {
+            "Type" : "AWS::EC2::VPC",
+            "Properties" : {
+                "CidrBlock" : "10.0.0.0/16",
+                "EnableDnsSupport" : "true",
+                "EnableDnsHostnames" : "true",
+                "InstanceTenancy"    : "default",
+                "Tags"               : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+                        "Key" : "Name",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ]
+            }
+        },
+        "SubnetIdA"               : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : "eu-west-1a",
+                "CidrBlock"        : "10.0.0.0/24",
+                "MapPublicIpOnLaunch" : "true",
+                "Tags"                : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ],
+                "VpcId"               : {
+                    "Ref" : "adireWebhostingPlatform"
+                }
+            }
+        },
+        "SubnetIdB"               : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : "eu-west-1b",
+                "CidrBlock"        : "10.0.1.0/24",
+                "MapPublicIpOnLaunch" : "true",
+                "Tags"                : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ],
+                "VpcId"               : {
+                    "Ref" : "adireWebhostingPlatform"
+                }
+            }
+        },
+        "SubnetIdC"               : {
+            "Type" : "AWS::EC2::Subnet",
+            "Properties" : {
+                "AvailabilityZone" : "eu-west-1c",
+                "CidrBlock"        : "10.0.2.0/24",
+                "MapPublicIpOnLaunch" : "true",
+                "Tags"                : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ],
+                "VpcId"               : {
+                    "Ref" : "adireWebhostingPlatform"
+                }
+            }
+        },
+        "WebServerScaleUpPolicy" : {
+          "Type" : "AWS::AutoScaling::ScalingPolicy",
+          "Properties" : {
+            "AdjustmentType" : "ChangeInCapacity",
+            "AutoScalingGroupName" : { "Ref" : "AutoScaler" },
+            "Cooldown" : "60",
+            "ScalingAdjustment" : "1"
+          }
+        },
+        "WebServerScaleDownPolicy" : {
+          "Type" : "AWS::AutoScaling::ScalingPolicy",
+          "Properties" : {
+            "AdjustmentType" : "ChangeInCapacity",
+            "AutoScalingGroupName" : { "Ref" : "AutoScaler" },
+            "Cooldown" : "60",
+            "ScalingAdjustment" : "-1"
+          }
+        },
+        "CPUAlarmHigh": {
+         "Type": "AWS::CloudWatch::Alarm",
+         "Properties": {
+            "AlarmDescription": "Scale-up if CPU > 80% for 4 minutes",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/EC2",
+            "Statistic": "Average",
+            "Period": "120",
+            "EvaluationPeriods": "2",
+            "Threshold": "80",
+            "AlarmActions": [ { "Ref": "WebServerScaleUpPolicy" } ],
+            "Dimensions": [
+              {
+                "Name": "AutoScalingGroupName",
+                "Value": { "Ref": "AutoScaler" }
+              }
+            ],
+            "ComparisonOperator": "GreaterThanThreshold"
+          }
+        },
+        "CPUAlarmLow": {
+         "Type": "AWS::CloudWatch::Alarm",
+         "Properties": {
+            "AlarmDescription": "Scale-down if CPU < 50% for 10 minutes",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/EC2",
+            "Statistic": "Average",
+            "Period": "300",
+            "EvaluationPeriods": "2",
+            "Threshold": "50",
+            "AlarmActions": [ { "Ref": "WebServerScaleDownPolicy" } ],
+            "Dimensions": [
+              {
+                "Name": "AutoScalingGroupName",
+                "Value": { "Ref": "AutoScaler" }
+              }
+            ],
+            "ComparisonOperator": "LessThanThreshold"
+          }
+        },
+        "WebServerScaleUpPolicySpot" : {
+          "Type" : "AWS::AutoScaling::ScalingPolicy",
+          "Properties" : {
+            "AdjustmentType" : "ChangeInCapacity",
+            "AutoScalingGroupName" : { "Ref" : "AutoScalerSpot" },
+            "Cooldown" : "60",
+            "ScalingAdjustment" : "1"
+          }
+        },
+        "WebServerScaleDownPolicySpot" : {
+          "Type" : "AWS::AutoScaling::ScalingPolicy",
+          "Properties" : {
+            "AdjustmentType" : "ChangeInCapacity",
+            "AutoScalingGroupName" : { "Ref" : "AutoScalerSpot" },
+            "Cooldown" : "60",
+            "ScalingAdjustment" : "-1"
+          }
+        },
+        "CPUAlarmHighSpot": {
+         "Type": "AWS::CloudWatch::Alarm",
+         "Properties": {
+            "AlarmDescription": "Scale-up if CPU > 50% for 4 minutes",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/EC2",
+            "Statistic": "Average",
+            "Period": "120",
+            "EvaluationPeriods": "2",
+            "Threshold": "50",
+            "AlarmActions": [ { "Ref": "WebServerScaleUpPolicySpot" } ],
+            "Dimensions": [
+              {
+                "Name": "AutoScalingGroupName",
+                "Value": { "Ref": "AutoScalerSpot" }
+              }
+            ],
+            "ComparisonOperator": "GreaterThanThreshold"
+          }
+        },
+        "CPUAlarmLowSpot": {
+         "Type": "AWS::CloudWatch::Alarm",
+         "Properties": {
+            "AlarmDescription": "Scale-down if CPU < 30% for 10 minutes",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/EC2",
+            "Statistic": "Average",
+            "Period": "300",
+            "EvaluationPeriods": "2",
+            "Threshold": "30",
+            "AlarmActions": [ { "Ref": "WebServerScaleDownPolicySpot" } ],
+            "Dimensions": [
+              {
+                "Name": "AutoScalingGroupName",
+                "Value": { "Ref": "AutoScalerSpot" }
+              }
+            ],
+            "ComparisonOperator": "LessThanThreshold"
+          }
+        },
+        "AutoScalerConfig": {
+            "Type" : "AWS::AutoScaling::LaunchConfiguration",
+            "Metadata" : { 
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                        "packages" : {
+                            "yum" : {
+                                "php70": [],
+                                "php70-mysqlnd": [],
+                                "php70-bcmath": [],
+                                "puppet": []
+                            }
+                        },
+                        "files" : {
+                            "/etc/puppet/puppet.conf" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "[main]\n",
+                                    " logdir=/var/log/puppet\n",
+                                    " rundir=/var/run/puppet\n",
+                                    " ssldir=$vardir/ssl\n",
+                                    " pluginsync=true\n",
+                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
+                                    "[agent]\n",
+                                    " classfile=$vardir/classes.txt\n",
+                                    " localconfig=$vardir/localconfig\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
+                            }
+                        },
+                        "commands" : {
+                            "01_mount" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
+                                            {
+                                                "Ref" : "WebServerEFSFileSystem"
+                                            },
+                                            ".efs.",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            ".amazonaws.com:/ ",
+                                            {
+                                                "Ref" : "ParamWebDirMountPoint"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "03_hostname" : {
+                                "command" : "sudo hostname web`date +%s%N`.internal.adire.co.uk"
+                            },
+                            "04_delete_default_httpd_configs" : {
+                                "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
+                            },
+                            "05_packages" : {
+                                "command" : "yum -y update"
+                            }
+                        },
+                        "services" : {
+                            "sysvinit" : {
+                                "httpd" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                },
+                                "puppet" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                }
+                            }
+                        }
+                    }
+                },
+                "AWS::CloudFormation::Authentication" : {
+                    "S3" : {
+                        "type" : "S3",
+                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
+                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
+                        "buckets"     : ["application-webhosting"]
+                    }
+                }
+            },
+            "Properties" : {
+                "AssociatePublicIpAddress" : "true",
+                "EbsOptimized" : false,
+                "ImageId" : {
+                    "Fn::FindInMap" : [
+                        "AWSRegionArch2AMI",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap" : [
+                                "AWSInstanceType2Arch",
+                                {
+                                    "Ref" : "ParamInstanceType"
+                                },
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceMonitoring" : true,
+                "InstanceType" : {"Ref" : "ParamInstanceType"},
+                "KeyName"      : {"Ref" : "ParamKeyName"},
+                "UserData"          : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "#!/bin/bash -v\n",
+                                "yum update -y aws-cfn-bootstrap\n",
+                                "# nfs-utils is used by EFS mount command\n",
+                                "yum install -y nfs-utils\n",
+                                "# Helper function\n",
+                                "function error_exit\n",
+                                "{\n",
+                                "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n",
+                                "  exit 1\n",
+                                "}\n",
+                                "# Install LAP packages\n",
+                                "/opt/aws/bin/cfn-init --stack ",
+                                {
+                                    "Ref" : "AWS::StackId"
+                                },
+                                " --resource AutoScalerConfig --region ",
+                                {
+                                    "Ref" : "AWS::Region"
+                                },
+                                " || error_exit 'Failed to run cfn-init on WebVM'\n",
+                                "# Web dir is /srv/\n",
+                                "# All is well so signal success\n",
+                                "/opt/aws/bin/cfn-signal -e 0 -r \"LAP Stack setup complete\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n"
+                            ]
+                        ]
+                    }
+                },
+              "SecurityGroups" : [ { "Ref" : "SecurityGroupFileSystem" } , {"Ref" : "WebServerSecurityGroup"}]
+            }
+        },
+        "AutoScaler": {
+           "Type" : "AWS::AutoScaling::AutoScalingGroup",
+           "DependsOn": "CandCServer",
+           "Properties" : {
+              "AvailabilityZones" : { "Fn::GetAZs" : "" },
+              "Cooldown" : "300",
+              "DesiredCapacity" : "1",
+              "HealthCheckGracePeriod" : "180",
+              "HealthCheckType" : "ELB",
+              "LaunchConfigurationName" : {"Ref" : "AutoScalerConfig"},
+              "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+              "MaxSize" : "6",
+              "MetricsCollection": [
+                 {
+                    "Granularity": "1Minute",
+                    "Metrics": [
+                       "GroupMinSize",
+                       "GroupMaxSize"
+                    ]
+                 }
+              ],
+              "MinSize" : "1",
+              "Tags"                 : [
+                    {
+                        "Key" : "Application",
+                        "PropagateAtLaunch" : true,
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+                        "Key" : "Name",
+                        "PropagateAtLaunch" : true,
+                        "Value" : {"Fn::Join" : [
+                            "",
+                            [{"Ref" : "AWS::StackName"},": Web"]
+                        ]}
+                    }
+              ],
+              "VPCZoneIdentifier" : [ {"Ref" : "SubnetIdA"}, {"Ref" : "SubnetIdB"}, {"Ref" : "SubnetIdC"} ]
+           }
+        },
+        "AutoScalerConfigSpot": {
+            "Type" : "AWS::AutoScaling::LaunchConfiguration",
+            "Metadata" : {
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                        "packages" : {
+                            "yum" : {
+                                "php70": [],
+                                "php70-mysqlnd": [],
+                                "php70-bcmath": [],
+                                "puppet": []
+                            }
+                        },
+                        "files" : {
+                            "/etc/puppet/puppet.conf" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "[main]\n",
+                                    " logdir=/var/log/puppet\n",
+                                    " rundir=/var/run/puppet\n",
+                                    " ssldir=$vardir/ssl\n",
+                                    " pluginsync=true\n",
+                                    " server=",{ "Fn::GetAtt":["CandCServer","PrivateDnsName"] },"\n",
+                                    "[agent]\n",
+                                    " classfile=$vardir/classes.txt\n",
+                                    " localconfig=$vardir/localconfig\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
+                            }
+                        },
+                        "commands" : {
+                            "01_mount" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
+                                            {
+                                                "Ref" : "WebServerEFSFileSystem"
+                                            },
+                                            ".efs.",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            ".amazonaws.com:/ ",
+                                            {
+                                                "Ref" : "ParamWebDirMountPoint"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "03_hostname" : {
+                                "command" : "sudo hostname web`date +%s%N`.internal.adire.co.uk"
+                            },
+                            "04_delete_default_httpd_configs" : {
+                                "command" : "rm -f /etc/httpd/conf.d/{autoindex,notrace,php,userdir,welcome}.conf ; rm -f /etc/httpd/conf.d/php-conf.7.0 ; rm -f /etc/httpd/conf.d/README"
+                            },
+                            "05_packages" : {
+                                "command" : "yum -y update"
+                            }
+                        },
+                        "services" : {
+                            "sysvinit" : {
+                                "httpd" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                },
+                                "puppet" : {
+                                    "enabled" : "true",
+                                    "ensureRunning" : "true"
+                                }
+                            }
+                        }
+                    }
+                },
+                "AWS::CloudFormation::Authentication" : {
+                    "S3" : {
+                        "type" : "S3",
+                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
+                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
+                        "buckets"     : ["application-webhosting"]
+                    }
+                }
+            },
+            "Properties" : {
+                "AssociatePublicIpAddress" : "true",
+                "EbsOptimized" : false,
+                "ImageId" : {
+                    "Fn::FindInMap" : [
+                        "AWSRegionArch2AMI",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap" : [
+                                "AWSInstanceType2Arch",
+                                {
+                                    "Ref" : "ParamInstanceType"
+                                },
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceMonitoring" : true,
+                "InstanceType" : {"Ref" : "ParamInstanceType"},
+                "KeyName"      : {"Ref" : "ParamKeyName"},
+                "SpotPrice"    : "0.07",
+                "UserData"          : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "#!/bin/bash -v\n",
+                                "yum update -y aws-cfn-bootstrap\n",
+                                "# nfs-utils is used by EFS mount command\n",
+                                "yum install -y nfs-utils\n",
+                                "# Helper function\n",
+                                "function error_exit\n",
+                                "{\n",
+                                "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n",
+                                "  exit 1\n",
+                                "}\n",
+                                "# Install LAP packages\n",
+                                "/opt/aws/bin/cfn-init --stack ",
+                                {
+                                    "Ref" : "AWS::StackId"
+                                },
+                                " --resource AutoScalerConfigSpot --region ",
+                                {
+                                    "Ref" : "AWS::Region"
+                                },
+                                " || error_exit 'Failed to run cfn-init on WebVM'\n",
+                                "# Web dir is /srv/\n",
+                                "# All is well so signal success\n",
+                                "/opt/aws/bin/cfn-signal -e 0 -r \"LAP Stack setup complete\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n"
+                            ]
+                        ]
+                    }
+                },
+              "SecurityGroups" : [ { "Ref" : "SecurityGroupFileSystem" } , {"Ref" : "WebServerSecurityGroup"}]
+            }
+        },
+        "AutoScalerSpot": {
+           "Type" : "AWS::AutoScaling::AutoScalingGroup",
+           "DependsOn": "CandCServer",
+           "Properties" : {
+              "AvailabilityZones" : { "Fn::GetAZs" : "" },
+              "Cooldown" : "300",
+              "DesiredCapacity" : "2",
+              "HealthCheckGracePeriod" : "180",
+              "HealthCheckType" : "ELB",
+              "LaunchConfigurationName" : {"Ref" : "AutoScalerConfigSpot"},
+              "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+              "MaxSize" : "12",
+              "MetricsCollection": [
+                 {
+                    "Granularity": "1Minute",
+                    "Metrics": [
+                       "GroupMinSize",
+                       "GroupMaxSize"
+                    ]
+                 }
+              ],
+              "MinSize" : "2",
+              "Tags"                 : [
+                    {
+                        "Key" : "Application",
+                        "PropagateAtLaunch" : true,
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+                        "Key" : "Name",
+                        "PropagateAtLaunch" : true,
+                        "Value" : {"Fn::Join" : [
+                            "",
+                            [{"Ref" : "AWS::StackName"},": Web (spot)"]
+                        ]}
+                    }
+              ],
+              "VPCZoneIdentifier" : [ {"Ref" : "SubnetIdA"}, {"Ref" : "SubnetIdB"}, {"Ref" : "SubnetIdC"} ]
+           }
+        },
+        "WebServerSecurityGroup"  : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Enable HTTP, HTTPS, SSH",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "80",
+                        "ToPort"     : "80",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "443",
+                        "ToPort"     : "443",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "22",
+                        "ToPort"     : "22",
+                        "CidrIp"     : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "8140",
+                        "ToPort"     : "8140",
+                        "CidrIp"     : "10.0.0.0/16"
+                    }
+                ],
+                "VpcId"                : {
+                    "Ref" : "adireWebhostingPlatform"
+                }
+            }
+        },
+        "WebServerEFSFileSystem"  : {
+            "Type" : "AWS::EFS::FileSystem",
+            "Properties" : {
+                "FileSystemTags" : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+                        "Key" : "Name",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ]
+            }
+        },
+        "EFSMountTargetA"         : {
+            "Type" : "AWS::EFS::MountTarget",
+            "Properties" : {
+                "FileSystemId" : {
+                    "Ref" : "WebServerEFSFileSystem"
+                },
+                "SecurityGroups" : [
+                    {
+                        "Ref" : "SecurityGroupFileSystem"
+                    }
+                ],
+                "SubnetId"       : {
+                    "Ref" : "SubnetIdA"
+                }
+            }
+        },
+        "EFSMountTargetB"         : {
+            "Type" : "AWS::EFS::MountTarget",
+            "Properties" : {
+                "FileSystemId" : {
+                    "Ref" : "WebServerEFSFileSystem"
+                },
+                "SecurityGroups" : [
+                    {
+                        "Ref" : "SecurityGroupFileSystem"
+                    }
+                ],
+                "SubnetId"       : {
+                    "Ref" : "SubnetIdB"
+                }
+            }
+        },
+        "EFSMountTargetC"         : {
+            "Type" : "AWS::EFS::MountTarget",
+            "Properties" : {
+                "FileSystemId" : {
+                    "Ref" : "WebServerEFSFileSystem"
+                },
+                "SecurityGroups" : [
+                    {
+                        "Ref" : "SecurityGroupFileSystem"
+                    }
+                ],
+                "SubnetId"       : {
+                    "Ref" : "SubnetIdC"
+                }
+            }
+        },
+        "SecurityGroupFileSystem" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "SG for EFS",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort"   : "2049",
+                        "ToPort"     : "2049",
+                        "CidrIp"     : "10.0.0.0/16"
+                    }
+                ],
+                "Tags"                 : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    }
+                ],
+                "VpcId"                : {
+                    "Ref" : "adireWebhostingPlatform"
+                }
+            }
+        },
+        "WaitHandle"              : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "WaitCondition"           : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "DependsOn" : "AutoScalerConfig",
+            "Properties" : {
+                "Handle" : {
+                    "Ref" : "WaitHandle"
+                },
+                "Timeout" : "600"
+            }
+        },
+        "InternetGateway"         : {
+            "Type" : "AWS::EC2::InternetGateway",
+            "Properties" : {
+                "Tags" : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "AttachGateway"           : {
+            "DependsOn" : "InternetGateway",
+            "Type"      : "AWS::EC2::VPCGatewayAttachment",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "adireWebhostingPlatform"
+                },
+                "InternetGatewayId" : {
+                    "Ref" : "InternetGateway"
+                }
+            }
+        },
+        "MyRouteTable"            : {
+            "Type" : "AWS::EC2::RouteTable",
+            "Properties" : {
+                "VpcId" : {
+                    "Ref" : "adireWebhostingPlatform"
+                },
+                "Tags"  : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "Route"                   : {
+            "Type" : "AWS::EC2::Route",
+            "DependsOn" : [
+                "AttachGateway",
+                "MyRouteTable"
+            ],
+            "Properties" : {
+                "RouteTableId" : {
+                    "Ref" : "MyRouteTable"
+                },
+                "DestinationCidrBlock" : "0.0.0.0/0",
+                "GatewayId"            : {
+                    "Ref" : "InternetGateway"
+                }
+            }
+        },
+        "SubnetRouteTableAssociationA" : {
+            "DependsOn" : [
+                "SubnetIdA",
+                "MyRouteTable"
+            ],
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "SubnetIdA"
+                },
+                "RouteTableId" : {
+                    "Ref" : "MyRouteTable"
+                }
+            },
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "SubnetRouteTableAssociationB" : {
+            "DependsOn" : [
+                "SubnetIdB",
+                "MyRouteTable"
+            ],
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "SubnetIdB"
+                },
+                "RouteTableId" : {
+                    "Ref" : "MyRouteTable"
+                }
+            },
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "SubnetRouteTableAssociationC" : {
+            "DependsOn" : [
+                "SubnetIdC",
+                "MyRouteTable"
+            ],
+            "Properties" : {
+                "SubnetId" : {
+                    "Ref" : "SubnetIdC"
+                },
+                "RouteTableId" : {
+                    "Ref" : "MyRouteTable"
+                }
+            },
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "CandCServer"                    : {
+            "DependsOn" : "EFSMountTargetA",
+            "Type" : "AWS::EC2::Instance",
+            "Metadata" : {
+                "AWS::CloudFormation::Init" : {
+                    "config" : {
+                        "packages" : {
+                            "yum" : {
+                                "git": [],
+                                "php70": [],
+                                "php70-mysqlnd": [],
+                                "php70-bcmath": [],
+                                "puppet-server": [],
+                                "python27-devel": []
+                            }
+                        },
+                        "files"  : {
+                            "/tmp/sites.tar.gz" : {
+                                "mode" : "744",
+                                "source" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/apache-configs/apache-config.tar.gz"
+                            },
+                            "/tmp/latest-web-directory.tar.gz" : {
+                                "mode" : "600",
+                                "source" : "https://s3-eu-west-1.amazonaws.com/application-webhosting/backups-webdirectory/latest.tar.gz"
+                            },
+                            "/etc/cron.d/backupandletsencrypt": {
+                                "content": { 
+                                    "Fn::Join": [
+                                        "\n",
+                                        [
+                                        "0 * * * * root cd /root/ && php efs-backup.php",
+                                        "0 0 1,15 * * /opt/letsencrypt/letsencrypt-auto renew --config /etc/letsencrypt/config.ini --agree-tos",
+                                        "\n"
+                                        ]
+                                    ]
+                                },
+                                "group": "root", 
+                                "mode": "000644", 
+                                "owner": "root"
+                            },
+                            "/etc/letsencrypt/config.ini" : {
+                                "content": { 
+                                    "Fn::Join": [
+                                        "\n",
+                                        [
+                                            "rsa-key-size = 4096",
+                                            "email = admin@adire.co.uk"
+                                        ]
+                                    ]
+                                },
+                                "group": "root", 
+                                "mode": "000600", 
+                                "owner": "root"
+                            },
+                            "/root/.aws/credentials" : {
+                                "content": { 
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                          "[application-webhosting]\n",
+                                          "aws_access_key_id = ",{"Ref" : "IAMAccessKey"},"\n",
+                                          "aws_secret_access_key = ",{"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]}
+                                        ]
+                                    ]
+                                },
+                                "group": "root", 
+                                "mode": "000600", 
+                                "owner": "root"
+                            },
+                            "/root/efs-backup.php": {
+                                "mode" : "600",
+                                "content": {
+                                    "Fn::Join" : [
+                                      "\n",
+                                      ["<?php",
+
+                                      "exec('cd /root/');",
+                                      "exec('curl -sS https://getcomposer.org/installer | php');",
+                                      "file_put_contents('/root/composer.json','{",
+                                      "    \"require\": {",
+                                      "        \"aws/aws-sdk-php\": \"2.*\"",
+                                      "    }",
+                                      "}');",
+                                      "exec('php composer.phar install');",
+                                      
+                                      "require '/root/vendor/autoload.php';",
+                                      
+                                      "use Aws\\S3\\S3Client;",
+                                      
+                                      "const BUCKET = 'application-webhosting';",
+                                      
+                                      "$config = [",
+                                            "[",
+                                                "'archive' => '/tmp/latest-web-directory.tar.gz',",
+                                                "'folder' => '/srv',",
+                                                "'s3key' => 'backups-webdirectory/latest.tar.gz'",
+                                            "],[",
+                                                "'archive' => '/tmp/latest-web-config.tar.gz',",
+                                                "'folder' => '/etc/puppet/files/sites',",
+                                                "'s3key' => 'apache-configs/apache-config.tar.gz'",
+                                            "],[",
+                                                "'archive' => '/tmp/latest-letsencrypt.tar.gz',",
+                                                "'folder' => '/etc/letsencrypt',",
+                                                "'s3key' => 'letsencrypt/letsencrypt.tar.gz'",
+                                            "]",
+                                      "];",
+                                      
+                                      "//load profile into client object",
+                                      "$client = S3Client::factory(array(",
+                                      "    'profile' => BUCKET",
+                                      "));",
+                                      
+                                      "function scandir_by_mtime($folder, $mtime) {",
+                                          "$dircontent = scandir($folder);",
+                                          "foreach($dircontent as $filename) {",
+                                            "if ($filename != '.' && $filename != '..') {",
+                                              "$name = $folder.'/'.$filename;",
+                                              "if (filemtime($name) > $mtime) {",
+                                                    "return true;",
+                                              "}",
+                                              "if (is_dir($name)) {",
+                                                "$check = scandir_by_mtime($name, $mtime);",
+                                                "if ($check) {",
+                                                    "return true;",
+                                                "}",
+                                              "}",
+                                            "}",
+                                          "}",
+                                          "return false;",
+                                        "}",
+                                        
+                                      "foreach ($config as $backup) {",
+                                        "//if files have been modified since our last backup",
+                                        "if (!file_exists($backup['archive']) || scandir_by_mtime($backup['folder'], filemtime($backup['archive']))) {",
+                                            "//move old local backups and create new",
+                                            "exec('mv '.$backup['archive'].' '.$backup['archive'].'.previous');",
+                                            "exec('tar -czvf '.$backup['archive'].' '.$backup['folder']);",
+                                            
+                                            "//upload to s3",
+                                            "$result = $client->putObject(array(",
+                                            "    'Bucket'     => BUCKET,",
+                                            "    'Key'        => $backup['s3key'],",
+                                            "    'SourceFile' => $backup['archive']",
+                                            "));",
+                                        "}",
+                                      "}"
+                                      
+                                      ]
+                                    ]
+                                }
+                            },
+                            "/etc/puppet/autosign.conf" : {
+                                "content" : "*.internal.adire.co.uk\n",
+                                "mode" : "100644",
+                                "owner" : "root",
+                                "group" : "root"
+                            },
+                            "/etc/puppet/fileserver.conf" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "[files]\n",
+                                    " path /etc/puppet/files\n",
+                                    " allow *.internal.adire.co.uk\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
+                            },
+                            "/etc/puppet/manifests/site.pp" : {
+                                "content" : { "Fn::Join" : ["", [
+                                    "service { 'httpd':\n",
+                                    "    ensure  => 'running',\n",
+                                    "    enable  => true,\n",
+                                    "    hasrestart => true,\n",
+                                    "}\n",
+
+                                    "class sites {\n",
+                                    "        file {['/etc','/etc/httpd']:\n",
+                                    "          ensure => directory\n",
+                                    "        }\n",
+                                    "        file { '/etc/httpd/conf.d':\n",
+                                    "                ensure       => directory,\n",
+                                    "                group        => root,\n",
+                                    "                mode         => 0644,\n",
+                                    "                notify       => Service['httpd'],\n",
+                                    "                owner        => root,\n",
+                                    "                path         => '/etc/httpd/conf.d',\n",
+                                    "                purge        => true,\n",
+                                    "                recurse      => true,\n",
+                                    "                replace      => true,\n",
+                                    "                source       => 'puppet:///files/sites'\n",
+                                    "        }\n",
+                                    "}\n",
+
+                                    "node /^web([0-9]+)\\.internal\\.adire\\.co\\.uk$/ {\n",
+                                    "        include sites\n",
+                                    "}\n"
+                                ]] },
+                                "mode" : "000644",
+                                "owner" : "root",
+                                "group" : "root"
+                            }
+                        },
+                        "commands" : {
+                            "01_mount" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "mount -t nfs4 -o nfsvers=4.1 $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).",
+                                            {
+                                                "Ref" : "WebServerEFSFileSystem"
+                                            },
+                                            ".efs.",
+                                            {
+                                                "Ref" : "AWS::Region"
+                                            },
+                                            ".amazonaws.com:/ ",
+                                            {
+                                                "Ref" : "ParamWebDirMountPoint"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "02_unpack_web_dir" : {
+                                "command" : "tar -zxf /tmp/latest-web-directory.tar.gz ; rm /tmp/latest-web-directory.tar.gz"
+                            },
+                            "03_unpack_apacheconfig_dir" : {
+                                "command" : "tar -zxf /tmp/sites.tar.gz ; rm /tmp/sites.tar.gz"
+                            },
+                            "04_permissions" : {
+                                "command" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+                                            "chown ec2-user:ec2-user ",{"Ref" : "ParamWebDirMountPoint"},"\n",
+                                            "chmod -R 744 /etc/puppet/files/ && chown -R puppet:puppet /etc/puppet/files/"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "05_packages" : {
+                                "command" : "yum -y update"
+                            }
+                        },
+                        "services" : {
+                            "sysvinit" : {
+                               "puppetmaster" : {
+                                   "enabled" : "true",
+                                   "ensureRunning" : "true"
+                                }
+                            }
+                        }
+                    }
+                },
+                "AWS::CloudFormation::Authentication" : {
+                    "S3" : {
+                        "type" : "S3",
+                        "accessKeyId" : {"Ref" : "IAMAccessKey"},
+                        "secretKey"   : {"Fn::GetAtt" : ["IAMAccessKey","SecretAccessKey"]},
+                        "buckets"     : ["application-webhosting"]
+                    }
+                }
+            },
+            "Properties" : {
+                "ImageId" : {
+                    "Fn::FindInMap" : [
+                        "AWSRegionArch2AMI",
+                        {
+                            "Ref" : "AWS::Region"
+                        },
+                        {
+                            "Fn::FindInMap" : [
+                                "AWSInstanceType2Arch",
+                                {
+                                    "Ref" : "ParamInstanceType"
+                                },
+                                "Arch"
+                            ]
+                        }
+                    ]
+                },
+                "InstanceType" : {"Ref" : "ParamInstanceBastion"},
+                "KeyName"      : {"Ref" : "ParamKeyName"},
+                "NetworkInterfaces" : [
+                    {
+                        "GroupSet" : [
+                            {
+                                "Ref" : "WebServerSecurityGroup"
+                            }
+                        ],
+                        "AssociatePublicIpAddress" : "true",
+                        "DeviceIndex"              : "0",
+                        "DeleteOnTermination"      : "true",
+                        "SubnetId"                 : {
+                            "Ref" : "SubnetIdA"
+                        }
+                    }
+                ],
+                "Tags"              : [
+                    {
+                        "Key" : "Application",
+                        "Value" : {
+                            "Ref" : "AWS::StackName"
+                        }
+                    },{
+                        "Key" : "Name",
+                        "Value" : {"Fn::Join" : [
+                            "",
+                            [{"Ref" : "AWS::StackName"},": Bastion"]
+                        ]}
+                    }
+                ],
+                "UserData"          : {
+                    "Fn::Base64" : {
+                        "Fn::Join" : [
+                            "",
+                            [
+                                "#!/bin/bash -v\n",
+                                "yum update -y aws-cfn-bootstrap\n",
+                                "# nfs-utils is used by EFS mount command\n",
+                                "yum install -y nfs-utils\n",
+                                "# Helper function\n",
+                                "function error_exit\n",
+                                "{\n",
+                                "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n",
+                                "  exit 1\n",
+                                "}\n",
+                                "# Install LAP packages\n",
+                                "/opt/aws/bin/cfn-init -s ",
+                                {
+                                    "Ref" : "AWS::StackId"
+                                },
+                                " -r CandCServer --region ",
+                                {
+                                    "Ref" : "AWS::Region"
+                                },
+                                " || error_exit 'Failed to run cfn-init on CandC Server'\n",
+                                "# Web dir is /srv/\n",
+                                "# All is well so signal success\n",
+                                "/opt/aws/bin/cfn-signal -e 0 -r \"LAP Stack setup complete\" '",
+                                {
+                                    "Ref" : "WaitHandle"
+                                },
+                                "'\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+        "emailsrvrHealthCheck": {
+          "Type": "AWS::Route53::HealthCheck",
+          "Properties": {
+            "HealthCheckConfig": {
+              "Port": "993",
+              "Type": "TCP",
+              "FullyQualifiedDomainName": "secure.emailsrvr.com",
+              "RequestInterval": "30",
+              "FailureThreshold": "3"
+            },
+            "HealthCheckTags" : [{
+              "Key" : "Application",
+              "Value" : {
+                "Ref" : "AWS::StackName"
+              }
+            }]
+          }
+        },
+        "awsAdireHealthCheck": {
+          "Type": "AWS::Route53::HealthCheck",
+          "Properties": {
+            "HealthCheckConfig": {
+              "Port": "80",
+              "Type": "HTTP",
+              "ResourcePath": "/",
+              "FullyQualifiedDomainName": "adire.co.uk",
+              "RequestInterval": "30",
+              "FailureThreshold": "3"
+            },
+            "HealthCheckTags" : [{
+              "Key" : "Application",
+              "Value" : {
+                "Ref" : "AWS::StackName"
+              }
+            }]
+          }
+        },
+        "IAMGroup": {
+          "Type": "AWS::IAM::Group",
+          "Properties": {
+            "GroupName": {
+                "Ref" : "AWS::StackName"
+            }
+          }
+        },
+        "IAMPolicy": {
+            "DependsOn": [ "IAMGroup" ],
+            "Type": "AWS::IAM::Policy",
+            "Properties" : {
+              "Groups" : [{
+                "Ref" : "AWS::StackName"
+              }],
+              "PolicyName" : {
+                "Ref" : "AWS::StackName"
+              },
+              "PolicyDocument" : {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:ListBucket"
+                            ],
+                            "Resource": [
+                                "arn:aws:s3:::application-webhosting"
+                            ]
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:GetObject",
+                                "s3:PutObject"
+                            ],
+                            "Resource": [
+                                "arn:aws:s3:::application-webhosting/*"
+                            ]
+                        }
+                    ]
+              }
+            }
+        },
+        "IAMUser": {
+            "DependsOn": [ "IAMGroup" ],
+            "Type": "AWS::IAM::User",
+            "Properties": {
+                "Groups" : [{
+                    "Ref" : "AWS::StackName"
+                }]
+            }
+        },
+        
+        "IAMAccessKey": {
+            "DependsOn": [ "IAMUser" ],
+           "Type": "AWS::IAM::AccessKey",
+           "Properties": {
+              "UserName": {"Ref" : "IAMUser"}
+           }
+        },
+        
+        "DNSRecordWWW" : {
+          "Type" : "AWS::Route53::RecordSet",
+          "Properties" : {
+             "HostedZoneName" : "adire.co.uk.",
+             "Comment" : "AWS adire hosting platform.",
+             "Name" : {"Fn::Join" : ["",[{"Ref" : "ParamDNSPrefix"},"application-hostingplatform.adire.co.uk."]]},
+             "Type" : "CNAME",
+             "TTL" : "300",
+             "ResourceRecords" : [
+                { "Fn::GetAtt":["ElasticLoadBalancer","DNSName"] }
+             ]
+          }
+        },
+        
+        "DNSRecordBastion" : {
+          "Type" : "AWS::Route53::RecordSet",
+          "Properties" : {
+             "HostedZoneName" : "adire.co.uk.",
+             "Comment" : "Bastion for AWS adire hosting platform.",  
+             "Name" : {"Fn::Join" : ["",[{"Ref" : "ParamDNSPrefix"},"bastion.adire.co.uk."]]},
+             "Type" : "CNAME",
+             "TTL" : "300",
+             "ResourceRecords" : [
+                { "Fn::GetAtt":["CandCServer","PublicDnsName"] }
+             ]
+          }
+        }
+        
+    },
+    "Outputs"                  : {
+        "PlatformURL" : {
+            "Value" : "http://application-hostingplatform.adire.co.uk",
+            "Description" : "URL for newly created website hosting service"
+        },
+        "LoadBalancerURL" : {
+            "Value" : {
+                "Fn::Join" : [
+                    "",
+                    [
+                        "http://",
+                        {
+                            "Fn::GetAtt" : [
+                                "ElasticLoadBalancer",
+                                "DNSName"
+                            ]
+                        }
+                    ]
+                ]
+            },
+            "Description" : "URL for newly created website hosting service"
+        },
+        "CandCServer" : {
+            "Value" : {
+                "Fn::Join" : [
+                    "",
+                    [
+                        "http://",
+                        {
+                            "Fn::GetAtt" : [
+                                "CandCServer",
+                                "PublicDnsName"
+                            ]
+                        }
+                    ]
+                ]
+            },
+            "Description" : "URL for newly created website hosting service"
+        }
+    }
+}
