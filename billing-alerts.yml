@@ -1,0 +1,100 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: US-EAST-1 ONLY! Generate billing alerts.
+Parameters:
+  Email:
+    Type: String
+    Description: Email address to notify when an alarm is triggered
+Resources:
+  NotifyMe:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+      - Endpoint:
+          Ref: Email
+        Protocol: email
+  100dollarsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmActions:
+      - Ref: NotifyMe
+      AlarmDescription: Alert when we spend money!
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+      - Name: Currency
+        Value: USD
+      EvaluationPeriods: '3'
+      MetricName: EstimatedCharges
+      Namespace: AWS/Billing
+      Period: '3600'
+      Statistic: Maximum
+      Threshold: '100'
+  200dollarsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmActions:
+      - Ref: NotifyMe
+      AlarmDescription: Alert when we spend money!
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+      - Name: Currency
+        Value: USD
+      EvaluationPeriods: '3'
+      MetricName: EstimatedCharges
+      Namespace: AWS/Billing
+      Period: '3600'
+      Statistic: Maximum
+      Threshold: '200'
+  400dollarsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmActions:
+      - Ref: NotifyMe
+      AlarmDescription: Alert when we spend money!
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+      - Name: Currency
+        Value: USD
+      EvaluationPeriods: '3'
+      MetricName: EstimatedCharges
+      Namespace: AWS/Billing
+      Period: '3600'
+      Statistic: Maximum
+      Threshold: '400'
+  800dollarsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmActions:
+      - Ref: NotifyMe
+      AlarmDescription: Alert when we spend money!
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+      - Name: Currency
+        Value: USD
+      EvaluationPeriods: '3'
+      MetricName: EstimatedCharges
+      Namespace: AWS/Billing
+      Period: '3600'
+      Statistic: Maximum
+      Threshold: '800'
+  1000dollarsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmActions:
+      - Ref: NotifyMe
+      AlarmDescription: Alert when we spend money!
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+      - Name: Currency
+        Value: USD
+      EvaluationPeriods: '3'
+      MetricName: EstimatedCharges
+      Namespace: AWS/Billing
+      Period: '3600'
+      Statistic: Maximum
+      Threshold: '1000'
