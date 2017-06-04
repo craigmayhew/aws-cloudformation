@@ -322,6 +322,7 @@
                                 "php70-bcmath": [],
                                 "php70-gd": [],
                                 "php70-opcache": [],
+                                "php70-mbstring": [],
                                 "php70-mysqlnd": [],
                                 "php70-pecl-memcached": [],
                                 "puppet": []
@@ -512,6 +513,7 @@
                                 "php70-bcmath": [],
                                 "php70-gd": [],
                                 "php70-opcache": [],
+                                "php70-mbstring": [],
                                 "php70-mysqlnd": [],
                                 "php70-pecl-memcached": [],
                                 "puppet": []
@@ -945,6 +947,7 @@
                                 "php70-bcmath": [],
                                 "php70-gd": [],
                                 "php70-opcache": [],
+                                "php70-mbstring": [],
                                 "php70-mysqlnd": [],
                                 "puppet-server": [],
                                 "python27-devel": []
