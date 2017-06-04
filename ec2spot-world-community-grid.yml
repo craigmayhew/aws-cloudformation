@@ -1,0 +1,168 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Script for spinning up world community grid spot instances
+Parameters:
+  NumInstances:
+    Description: Number of instances to spawn
+    Type: String
+    Default: '1'
+    AllowedPattern: "[0-9]*"
+  WorldCommunityGridAccountKey:
+    Description: " Key for your world community grid account"
+    Type: String
+    Default: ''
+    AllowedPattern: "[0-9a-z]*"
+  MaxSpotPrice:
+    Description: Max price per instance to pay before shutting instances down
+    Type: String
+    Default: '0.10'
+    AllowedPattern: "[0-1]*\\.[0-9][0-9]"
+  ParamKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 key pair to enable SSH access to the ECS
+      instances
+Mappings:
+  InstanceTypeInfo:
+    m1.small:
+      Arch: '64'
+      MaxInstancePartitionSize: '160000'
+      MaxInstanceHeap: '0'
+    m3.medium:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '4000'
+      MaxInstanceHeap: '0'
+    m3.large:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '32000'
+      MaxInstanceHeap: '0'
+    m3.xlarge:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '40000'
+      MaxInstanceHeap: '5'
+    m3.2xlarge:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '80000'
+      MaxInstanceHeap: '20'
+    c3.large:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '16000'
+      MaxInstanceHeap: '0'
+    c3.xlarge:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '40000'
+      MaxInstanceHeap: '0'
+    c3.2xlarge:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '80000'
+      MaxInstanceHeap: '5'
+    c3.4xlarge:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '160000'
+      MaxInstanceHeap: '20'
+    c3.8xlarge:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '320000'
+      MaxInstanceHeap: '50'
+    r3.large:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '32000'
+      MaxInstanceHeap: '5'
+    r3.xlarge:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '80000'
+      MaxInstanceHeap: '20'
+    r3.2xlarge:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '160000'
+      MaxInstanceHeap: '50'
+    r3.4xlarge:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '320000'
+      MaxInstanceHeap: '100'
+    r3.8xlarge:
+      Arch: 64HVM
+      MaxInstancePartitionSize: '320000'
+      MaxInstanceHeap: '200'
+  AWSRegionArch2AMI:
+    us-east-1:
+      '64': ami-
+      64HVM: ami-
+    us-west-2:
+      '64': ami-
+      64HVM: ami-
+    us-west-1:
+      '64': ami-
+      64HVM: ami-
+    eu-west-1:
+      '64': ami-99d349ea
+      64HVM: ami-a4d44ed7
+    ap-singapore:
+      '64': ami-
+      64HVM: ami-
+    ap-sydney:
+      '64': ami-
+      64HVM: ami-
+    ap-tokyo:
+      '64': ami-
+      64HVM: ami-
+    sa-east-1:
+      '64': ami-
+      64HVM: ami-
+Resources:
+  Config:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      SpotPrice:
+        Ref: MaxSpotPrice
+      SecurityGroups:
+      - Ref: SSHSecurityGroup
+      - default
+      ImageId:
+        Fn::FindInMap:
+        - AWSRegionArch2AMI
+        - Ref: AWS::Region
+        - Fn::FindInMap:
+          - InstanceTypeInfo
+          - c3.xlarge
+          - Arch
+      InstanceType: c3.xlarge
+      KeyName:
+        Ref: ParamKeyName
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -v
+          # update packages
+          sudo apt-get update -y
+          # install the boinc client
+          sudo apt-get install boinc-client -y
+          # start boinc!
+          sudo service boinc-client start
+          # set it to run under my account
+          sudo -u boinc boinccmd --project_attach http://www.worldcommunitygrid.org
+          Ref: WorldCommunityGridAccountKey
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+        Fn::GetAZs:
+          Ref: AWS::Region
+      LaunchConfigurationName:
+        Ref: Config
+      DesiredCapacity:
+        Ref: NumInstances
+      MaxSize:
+        Ref: NumInstances
+      MinSize: '1'
+      Tags:
+      - Key: Name
+        Value: Boinc World Community Grid Client
+        PropagateAtLaunch: 'true'
