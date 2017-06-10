@@ -1,52 +1,77 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Generate a VPC, Security Group, Windows Desktop and attach an existing
-  EBS.
 Parameters:
-  ParamInstanceType:
-    Description: Windows Desktop EC2 instance type
-    Type: String
-    Default: m3.medium
-    AllowedValues:
-    - m3.medium
-    - m3.2xlarge
-    - c1.xlarge
-    - c3.4xlarge
-    ConstraintDescription: Must be a valid EC2 instance type.
-  ParamElasticBlockStorage:
-    Description: EBS Volume to store the home directory on. EBS resource ID.
-    Type: AWS::EC2::Volume::Id
-  ParamKeyName:
+  KeyName:
     Type: AWS::EC2::KeyPair::KeyName
-    Description: Name of an existing EC2 key pair to enable SSH access to the ECS
-      instances
-  VPC:
-    Description: VPC for the new desktop VM.
-    Type: AWS::EC2::VPC::Id
+    Description: Name of an existing EC2 key pair to enable SSH access to the instances.
+  InstanceType:
+    Description: EC2 instance type/size
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+    - t2.micro
+    - t2.small
+    - t2.medium
+    - t2.large
+    - m3.medium
+    - m3.large
+    - m3.xlarge
+    - m3.2xlarge
+    - m4.large
+    - m4.xlarge
+    - m4.2xlarge
+    - m4.4xlarge
+    - m4.10xlarge
+    - c4.large
+    - c4.xlarge
+    - c4.2xlarge
+    - c4.4xlarge
+    - c4.8xlarge
+    - c3.large
+    - c3.xlarge
+    - c3.2xlarge
+    - c3.4xlarge
+    - c3.8xlarge
+    - r3.large
+    - r3.xlarge
+    - r3.2xlarge
+    - r3.4xlarge
+    - r3.8xlarge
+    - i2.xlarge
+    - i2.2xlarge
+    - i2.4xlarge
+    - i2.8xlarge
+    ConstraintDescription: Please choose a valid instance type.
+  DNSPrefix:
+    Default: currentdate-
+    # To ensure if you bring a live and a test environment up, the DNS entries remains unique
+    Description: currentdate-ws.mayhew.io
+    Type: String
 Resources:
-  SubnetId:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone: eu-west-1a
-      CidrBlock: 172.30.27.0/24
-      MapPublicIpOnLaunch: 'true'
-      Tags:
-      - Key: Application
-        Value:
-          Ref: AWS::StackName
-      VpcId:
-        Ref: VPC
-  DesktopSecurityGroup:
+  SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Enable RDP
-      SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: '3389'
-        ToPort: '3389'
-        CidrIp: 0.0.0.0/0
+      GroupDescription: Security Group
       VpcId:
         Ref: VPC
+  SecurityGroupRDPinbound:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId:
+        Ref: SecurityGroup
+      IpProtocol: tcp
+      FromPort: '3389'
+      ToPort: '3389'
+      CidrIp: 0.0.0.0/0
+  CloudwatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+        - "-"
+        - - LogGroup
+          - Ref: AWS::StackName
+      RetentionInDays: 14
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -54,102 +79,183 @@ Resources:
       - Key: Application
         Value:
           Ref: AWS::StackId
-  myDNSRecord:
-    Type: AWS::Route53::RecordSet
+  AttachGateway:
+    DependsOn:
+    - InternetGateway
+    - VPC
+    Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      HostedZoneName: mayhew.io.
-      Comment: DNS name for my instance.
-      Name: cmdesktop.mayhew.io.
-      Type: A
-      TTL: '90'
-      ResourceRecords:
-      - Fn::GetAtt:
-        - Desktop
-        - PublicIp
-  EBS:
-    Type: AWS::EC2::VolumeAttachment
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+  MyRouteTable:
+    DependsOn: VPC
+    Type: AWS::EC2::RouteTable
     Properties:
-      Device: "/dev/xvdc"
-      InstanceId:
-        Ref: Desktop
-      VolumeId:
-        Ref: ParamElasticBlockStorage
-  Desktop:
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Application
+        Value:
+          Ref: AWS::StackId
+  Route:
+    Type: AWS::EC2::Route
+    DependsOn:
+    - AttachGateway
+    - MyRouteTable
+    Properties:
+      RouteTableId:
+        Ref: MyRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+  SubnetRouteTableAssociationA:
+    DependsOn:
+    - SubnetIdA
+    - MyRouteTable
+    Properties:
+      SubnetId:
+        Ref: SubnetIdA
+      RouteTableId:
+        Ref: MyRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  SubnetRouteTableAssociationB:
+    DependsOn:
+    - SubnetIdB
+    - MyRouteTable
+    Properties:
+      SubnetId:
+        Ref: SubnetIdB
+      RouteTableId:
+        Ref: MyRouteTable
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  Workstation:
     Type: AWS::EC2::Instance
     Metadata:
       AWS::CloudFormation::Init:
-        config:
-          files:
-            c:\cfn\cfn-hup.conf:
-              content: !Sub |
-                [main]
-                stack=${AWS::StackId}
-                region=${AWS::Region}
-            c:\cfn\hooks.d\cfn-auto-reloader.conf:
-              content: !Sub |
-                [cfn-auto-reloader-hook]
-                triggers=post.update
-                path=Resources.Desktop.Metadata.AWS::CloudFormation::Init
-                action=cfn-init.exe -v -s ${AWS::StackId} -r Desktop --region ${AWS::Region}
-          services:
-            windows:
-              cfn-hup:
-                enabled: 'true'
-                ensureRunning: 'true'
-                files:
-                - c:\cfn\cfn-hup.conf
-                - c:\cfn\hooks.d\cfn-auto-reloader.conf
+        commands:
+          1-run-windows-update:
+            command: wuauclt.exe /detectnow /updatenow
     Properties:
-      ImageId: ami-a8592cdb
-      InstanceType:
-        Ref: ParamInstanceType
-      KeyName:
-        Ref: ParamKeyName
-      BlockDeviceMappings:
-      - DeviceName: "/dev/sda1"
-        Ebs:
-          VolumeSize: '100'
-      - DeviceName: xvdc
-        Ebs:
-          VolumeSize: '100'
+      ImageId:
+        ami-f2495e96
       NetworkInterfaces:
       - GroupSet:
-        - Ref: DesktopSecurityGroup
+        - Ref: SecurityGroup
         AssociatePublicIpAddress: 'true'
         DeviceIndex: '0'
         DeleteOnTermination: 'true'
         SubnetId:
-          Ref: SubnetId
+          Ref: SubnetIdB
+      InstanceType:
+        Ref: InstanceType
+      KeyName:
+        Ref: KeyName
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          VolumeSize: '100'
+          VolumeType: gp2
+      UserData:
+        Fn::Base64: !Sub |
+          <powershell>
+            PowerShell.exe -ExecutionPolicy unrestricted
+            iwr https://chocolatey.org/install.ps1 -UseBasicParsing | iex
+            choco install -y arcanist
+            choco install -y boxstarter
+            choco install -y composer
+            choco install -y conemu
+            choco install -y docker
+            choco install -y docker-machine
+            choco install -y docker-compose
+            choco install -y git
+            choco install -y grepwin
+            choco install -y heidisql
+            choco install -y jetbrainstoolbox
+            choco install -y notepadplusplus
+            choco install -y php
+            choco install -y phpstorm
+            choco install -y putty
+            choco install -y slack
+            choco install -y skype
+            choco install -y superputty
+            choco install -y steam
+            choco install -y tortoisegit
+            choco install -y vagrant
+            choco install -y virtualbox
+            choco install -y winmerge
+            choco install -y winscp
+            BOXSTARTERSHELL
+            Set-WindowsExplorerOptions -EnableShowHiddenFilesFoldersDrives -EnableShowProtectedOSFiles -EnableShowFileExtensions -EnableShowFullPathInTitleBar
+            Disable-BingSearch
+            Enable-RemoteDesktop
+            |2
+            # end of script
+            cfn-init.exe -v -s Ref: AWS::StackId -r Workstation --region Ref: AWS::Region
+            cfn-signal.exe -e $lastexitcode --stack Ref: AWS::StackName --resource AutoScalingGroup -region  Ref: AWS::Region;
+          </powershell>
+          <persist>true</persist>
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      InstanceTenancy: default
       Tags:
       - Key: Application
         Value:
           Ref: AWS::StackName
       - Key: Name
-        Value: Craigs Workstation
-      UserData:
-        Fn::Base64: !Sub |
-          <script>
-          cfn-init.exe -v -s ${AWS::StackName} -r Desktop --region ${AWS::Region}
-          cfn-signal.exe -e %ERRORLEVEL%
-          Fn::Base64:
-            Ref: WaitHandle
-          </script>
-  WaitHandle:
-    Type: AWS::CloudFormation::WaitConditionHandle
-  WaitCondition:
-    Type: AWS::CloudFormation::WaitCondition
-    DependsOn: Desktop
+        Value:
+          Ref: AWS::StackName
+  SubnetIdA:
+    Type: AWS::EC2::Subnet
     Properties:
-      Handle:
-        Ref: WaitHandle
-      Timeout: '3600'
+      AvailabilityZone: eu-west-2a
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: 'true'
+      Tags:
+      - Key: Application
+        Value:
+          Ref: AWS::StackName
+      VpcId:
+        Ref: VPC
+  SubnetIdB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-2b
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: 'true'
+      Tags:
+      - Key: Application
+        Value:
+          Ref: AWS::StackName
+      VpcId:
+        Ref: VPC
+  DNSRecordWorkStation:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: mayhew.io.
+      Comment: Workstation url.
+      Name:
+        Fn::Join:
+        - ''
+        - - Ref: DNSPrefix
+          - ws.mayhew.io.
+      Type: CNAME
+      TTL: '300'
+      ResourceRecords:
+      - Fn::GetAtt:
+        - Workstation
+        - PublicDnsName
 Outputs:
-  DesktopURL:
+  EC2RDP:
+    Description: Your instance url, username is Administrator
     Value:
       Fn::Join:
       - ''
-      - - http://
-        - Fn::GetAtt:
-          - Desktop
+      - - Fn::GetAtt:
+          - Workstation
           - PublicDnsName
-    Description: URL for newly created windows workstation
