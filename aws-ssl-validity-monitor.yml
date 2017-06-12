@@ -1,0 +1,155 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Generate aws lambda to check urls SSL validity
+Parameters:
+  ParamURLs:
+    Description: comma separated list of domains to check SSL valididty
+    Type: String
+    Default: "player2store.com,secure.adire.co.uk,take-a-way.co.uk,thelabelman.co.uk"
+  ParamEmail:
+    Description: Email to send alerts to
+    Type: String
+    Default: test@test.com
+Resources:
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Environment:
+        Variables:
+          'URLs': !Ref ParamURLs
+          'Email': !Ref ParamEmail 
+      Code:
+        ZipFile: !Sub |
+          var https = require('https');
+          var aws = require('aws-sdk');
+          var paramURLs = process.env.URLs.split(',');
+          var paramEmail = process.env.Email;
+          exports.handler = function(event, context) {
+            var inputUrls = paramURLs;
+            var aOptions = [];
+            for (var i = 0; i < inputUrls.length; i++) {
+              aOptions.push({
+                host: inputUrls[i],
+                method: 'get',
+                path: '/'
+              });
+            }
+            //number of requests that have returned
+            var returnedCount = 0;
+            var output = [];
+            function sendEmail(msg){
+              var ses = new aws.SES({apiVersion: '2010-12-01'});
+              var emailRecipient = [paramEmail];
+              var details = [];
+              var body = msg;
+              var joy = ses.sendEmail({
+                Source: paramEmail,
+                Destination: { ToAddresses: emailRecipient },
+                Message: {
+                  Subject: {
+                    Data: '[Lambda] SSL Issue'
+                  },
+                  Body: {
+                    Text: {
+                      Data: body
+                    }
+                  }
+                }
+              }, function(err, data) {
+                if(err) {
+                  callback(err);
+                } else {
+                  callback(null);
+                }
+              });
+              console.log(joy.response);
+            }
+            function certReturned(res) {
+              var authorized = res.socket.authorized;
+              var cert = res.socket.getPeerCertificate();
+              var domain = cert.subject.CN;
+                   
+              //check to see if the cert is invalid or valid for <1 month from now
+              var validToDate = new Date(cert.valid_to);
+              validToDate = validToDate.getTime()/1000;
+              var now = new Date();
+              now = now.getTime()/1000
+              var aMonthInSeconds = 60*60*24*30;
+              if(validToDate-now < aMonthInSeconds*7){
+                sendEmail(domain+': certificate valid until '+cert.valid_to);
+              }
+              if(!authorized){
+                sendEmail(domain+': certificate invalid');
+              }
+                
+              //decide if we have done all requests and then output as needed
+              returnedCount++;
+              output.push(domain+': certificate authorized:' + authorized+', valid to '+cert.valid_to);
+              if(aOptions.length == returnedCount){
+                context.succeed({success:output});
+              }
+            }
+            for (var i in aOptions){
+              var options = aOptions[i];
+              var req = https.request(
+                options,
+                certReturned
+              );
+              req.end();
+            }
+          }
+      Description: Check SSL certificates are valid
+      FunctionName: cloudformation-ssl-certificate-checker
+      Handler: index.handler
+      MemorySize: 1536
+      Role:
+        Fn::GetAtt:
+        - LambdaExecutionRole
+        - Arn
+      Runtime: nodejs4.3
+      Timeout: 1
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*:*:*
+  ScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: ScheduledRule
+      ScheduleExpression: rate(24 hours)
+      State: ENABLED
+      Targets:
+      - Arn:
+          Fn::GetAtt:
+          - LambdaFunction
+          - Arn
+        Id: TargetFunctionV1
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Ref: LambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+        - ScheduledRule
+        - Arn
