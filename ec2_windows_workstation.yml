@@ -41,6 +41,7 @@ Parameters:
     - i2.2xlarge
     - i2.4xlarge
     - i2.8xlarge
+    - p2.xlarge
     ConstraintDescription: Please choose a valid instance type.
   DNSPrefix:
     Default: currentdate-
@@ -213,7 +214,7 @@ Resources:
   SubnetIdA:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: eu-west-2a
+      AvailabilityZone: eu-west-1a
       CidrBlock: 10.0.0.0/24
       MapPublicIpOnLaunch: 'true'
       Tags:
@@ -225,7 +226,7 @@ Resources:
   SubnetIdB:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: eu-west-2b
+      AvailabilityZone: eu-west-1b
       CidrBlock: 10.0.1.0/24
       MapPublicIpOnLaunch: 'true'
       Tags:
