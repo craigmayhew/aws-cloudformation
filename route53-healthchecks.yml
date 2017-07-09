@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: US-EASt-1 ONLY! Generate Route53 health checks.
+Description: US-EAST-1 ONLY! Generate Route53 health checks.
 Parameters:
   Email:
     Type: String
@@ -41,38 +41,6 @@ Resources:
       - Key: Application
         Value:
           Ref: AWS::StackName
-  awsCRCHealthCheck:
-    Type: AWS::Route53::HealthCheck
-    Properties:
-      HealthCheckConfig:
-        Port: '80'
-        Type: HTTP
-        ResourcePath: "/"
-        FullyQualifiedDomainName: mailouts.thereferralrating.com
-        RequestInterval: '30'
-        FailureThreshold: '3'
-      HealthCheckTags:
-      - Key: Application
-        Value:
-          Ref: AWS::StackName
-  awsCRCAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      ActionsEnabled: true
-      AlarmActions:
-      - Ref: NotifyMe
-      AlarmDescription: Alert when CRC is down
-      ComparisonOperator: LessThanThreshold
-      Dimensions:
-      - Name: HealthCheckId
-        Value:
-          Ref: awsCRCHealthCheck
-      EvaluationPeriods: '3'
-      MetricName: HealthCheckStatus
-      Namespace: AWS/Route53
-      Period: '60'
-      Statistic: Minimum
-      Threshold: '1'
   awsTAWHealthCheck:
     Type: AWS::Route53::HealthCheck
     Properties:
