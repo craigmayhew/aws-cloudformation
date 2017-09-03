@@ -1,0 +1,111 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Generate aws lambdas to perform shell commands for rai gui
+Resources:
+  lambdaLS:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          var exec = require('child_process').exec;
+          exports.handler = function index(event, context, callback) {
+            const exec = require('child_process').exec;
+
+            exec('ls -lah', (error, stdout, stderr) => {
+              if (error) {
+                console.log("Error occured");
+                console.error(error);
+                return;
+              }
+              context.succeed({success:stdout});
+            });
+          };
+      Description: ls -lah
+      FunctionName: rai-ls
+      Handler: index.handler
+      MemorySize: 128
+      Role:
+        Fn::GetAtt:
+        - LambdaExecutionRole
+        - Arn
+      Runtime: nodejs6.10
+      Timeout: 1
+
+  lambdaBtc:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          var exec = require('child_process').exec;
+          exports.handler = function index(event, context, callback) {
+            const exec = require('child_process').exec;
+
+            exec('curl -sSL https://coinbase.com/api/v1/prices/historical | head -n 1 | sed "s|^.*,|$|" | sed "s|\(\.[0-9]$\)|\10|" | sed "s/[^0-9.]//g"', (error, stdout, stderr) => {
+              if (error) {
+                console.log("Error occured");
+                console.error(error);
+                return;
+              }
+              context.succeed({success:stdout});
+            });
+          };
+      Description: Return btc price in USD
+      FunctionName: rai-btc
+      Handler: index.handler
+      MemorySize: 128
+      Role:
+        Fn::GetAtt:
+        - LambdaExecutionRole
+        - Arn
+      Runtime: nodejs6.10
+      Timeout: 3
+  lambdaEth:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          var exec = require('child_process').exec;
+          exports.handler = function index(event, context, callback) {
+            const exec = require('child_process').exec;
+
+            exec('curl -s https://coinmarketcap-nexuist.rhcloud.com/api/eth | head -n 1 | sed "s/.*price/price/g" | sed \'s/price":{"usd"://\' | head -c 6 | esed "s/[^0-9.]//g"', (error, stdout, stderr) => {
+              if (error) {
+                console.log("Error occured");
+                console.error(error);
+                return;
+              }
+              context.succeed({success:stdout});
+            });
+          };
+      Description: Return ether price in USD
+      FunctionName: rai-eth
+      Handler: index.handler
+      MemorySize: 128
+      Role:
+        Fn::GetAtt:
+        - LambdaExecutionRole
+        - Arn
+      Runtime: nodejs6.10
+      Timeout: 3
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*:*:*
