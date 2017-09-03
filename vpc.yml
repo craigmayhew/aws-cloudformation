@@ -1,0 +1,113 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+
+  Name:
+    Description: VPC name
+    Type: String
+
+Outputs:
+
+  VpcId:
+    Value: !Ref VPC
+    Export:
+      Name: !Join ['-', [!Ref "AWS::StackName", "VpcId"]]
+
+  SubnetA:
+    Value: !Ref SubnetA
+    Export:
+      Name: !Join ['-', [!Ref "AWS::StackName", "SubnetA"]]
+
+  SubnetB:
+    Value: !Ref SubnetB
+    Export:
+      Name: !Join ['-', [!Ref "AWS::StackName", "SubnetB"]]
+
+  SubnetC:
+    Value: !Ref SubnetC
+    Export:
+      Name: !Join ['-', [!Ref "AWS::StackName", "SubnetC"]]
+
+  Subnets:
+    Value: !Join [",", [!Ref SubnetA, !Ref SubnetB, !Ref SubnetC]]
+    Export:
+      Name: !Join ['-', [!Ref "AWS::StackName", "Subnets"]]
+
+
+Resources:
+
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags: [Name: !Ref Name]
+
+  IG:
+    Type: "AWS::EC2::InternetGateway"
+
+  AttachGateway:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref IG
+      VpcId: !Ref VPC
+
+  RouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+
+  AssociateRouteToSubnetA:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref SubnetA
+
+  AssociateRouteToSubnetB:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref SubnetB
+
+  AssociateRouteToSubnetC:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref SubnetC
+
+  Route:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IG
+      RouteTableId: !Ref RouteTable
+
+  SubnetA:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      CidrBlock: "10.0.0.0/24"
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+
+  SubnetB:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: "10.0.1.0/24"
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+
+  SubnetC:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      CidrBlock: "10.0.2.0/24"
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
