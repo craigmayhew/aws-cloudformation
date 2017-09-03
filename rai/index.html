@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Rai</title>
+<meta charset="UTF-8">
+<link src="c.css" title="Styles" type="text/css">
+<link src="j.js" title="Script" type="text/javascript">
+<link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet">
+<style>
+body {
+  background-color: #000;
+  color: #eee;
+  font-family: 'Roboto Mono', monospace;
+  margin: 0;
+  padding: 0;
+}
+article {
+  background-color: #000;
+  float: right;
+  height: 350px;
+  margin-right: 2.5%;
+  vertical-align: bottom;
+  width: 95%;
+}
+article textarea {
+  background-color: #000;
+  color: #eee;
+  height:100%;
+  width:100%;
+}
+pre {
+  margin: 0;
+}
+section {
+  background-color: #000;
+  float: right;
+  margin: 1% 2.5%;
+  width: 95%;
+}
+section > * {
+  display: inline-block;
+  width: 220px;
+}
+.details {
+  background-color: #000;
+  float: right;
+  margin-top: 2.5%;
+  margin-right: 2.5%;
+  width: 95%;
+}
+progress[value]::-webkit-progress-bar {
+  background-color: #eee;
+  border-radius: 2px;
+  box-shadow: 0 2px 2.5% rgba(0, 0, 0, 0.25) inset;
+}
+.ok{
+  color: #33FF00;
+}
+.warn {
+  color: #FFCC00;
+}
+.error{
+  color: #DC322F;
+}
+</style>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script>
+var counter = 0;
+var connectionStatusIntervalTimer;
+setInterval(function() {
+    //count how long our session has been active
+    counter++;
+    seconds = (counter%60);
+    minutes = (counter - seconds) / 60;
+    seconds = seconds<10 ? '0'+seconds : seconds;
+    $('#sessionLen').html(minutes+'m '+seconds+'s');
+    
+    //update the time
+    var timestamp = Math.floor(Date.now() / 1000);
+    $('time').html(timestamp);
+    
+    //check for connectivity to internet
+    connectionStatusIntervalTimer = setTimeout(function() {
+      $('#connectionstatus').html('Disconnected').addClass('warn').removeClass('ok');
+    }, 500);
+    $.ajax({
+      url: 'status.php',
+      context: document.body
+    }).done(function() {
+      clearTimeout(connectionStatusIntervalTimer);
+      $('#connectionstatus').html('&nbsp; &nbsp;Connected').addClass('ok').removeClass('warn');
+    });
+}, 1000);
+</script>
+</head>
+<body>
+<header>
+</header>
+<content>
+<section>
+  <time>0000000000</time>
+  <div><span id="connectionstatus" class="warn">&nbsp; Connecting</span>: <span id="sessionLen">0m 00s</span></div>
+</section>
+<article>
+  <textarea>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+[craig@rai ~]# </textarea>
+</article>
+<div id="results"></div>
+</content>
+
+<footer>
+</footer>
+<script>
+var gotoend = function () {
+  var val = $('textarea').val();
+  $('textarea').val("");
+  $('textarea').val(val);
+  $('textarea').scrollTop($('textarea')[0].scrollHeight);
+}
+$('textarea').click(function(e) {
+  gotoend();
+});
+$('textarea').keyup(function(e) {
+    if (e.keyCode == 37 || e.keyCode == 38 || e.keyCode == 39 || e.keyCode == 40) {
+      gotoend();
+	}
+});
+$('textarea').keydown(function(e) {
+    if (e.keyCode == 13) {
+	    e.preventDefault();
+        var commands = $('textarea').val().split('[craig@rai ~]# ');
+        
+		var processId = Math.ceil(Math.random() * 100000000);
+		
+		$('<div id="'+processId+'" class="details"></div>').html('<pre>Processing...</pre>').prependTo( "#results");
+		
+        $.ajax({
+		  type: "POST",
+		  data: {'pid':processId, 'command': commands[commands.length-1]},
+          url: 'commands.php',
+          context: document.body,
+		  dataType: 'json'
+        }).done(function(data) {
+          $('#'+data.pid).html('<pre>'+data.data+'</pre>');
+        });
+		
+		$('textarea').val($('textarea').val()+"\n"+'[craig@rai ~]# ');
+        $('textarea').scrollTop($('textarea')[0].scrollHeight);
+    }
+});
+</script>
+</body>
+</html>
