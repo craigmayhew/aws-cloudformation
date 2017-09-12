@@ -2,10 +2,9 @@ provider "aws" {
   region     = "eu-west-2"
 }
 
-resource "aws_cloudformation_stack" "rai_API_Gateway_and_Lambdas" {
+resource "aws_cloudformation_stack" "rai_Lambdas" {
   capabilities = ["CAPABILITY_IAM"]
-  name = "Rai-apigateway-lambdas"
+  name = "Rai-lambdas"
   on_failure = "DELETE"
-  template_body = "${ file("apigateway_lambdas.yml") }"
+  template_body = "${ file("lambdas.yml") }"
 }
-

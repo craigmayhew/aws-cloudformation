@@ -1,0 +1,446 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Generate aws lambdas to perform shell commands for rai gui
+Parameters:
+  certificateARN:
+    Default: arn:aws:acm:us-east-1:902420391845:certificate/eb2693d6-fe4a-4f9f-8ce5-d09ae037e627
+    Description: certificate for api.rai.mayhew.io
+    Type: String
+
+Resources:
+      
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*:*:*
+            
+  BTCLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:invokeFunction
+      FunctionName:
+        Fn::GetAtt:
+        - BTCLambda
+        - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+        - ''
+        - - 'arn:aws:execute-api:'
+          - Ref: AWS::Region
+          - ":"
+          - Ref: AWS::AccountId
+          - ":"
+          - Ref: RaiAPI
+          - "/*"
+  
+  ETHLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:invokeFunction
+      FunctionName:
+        Fn::GetAtt:
+        - ETHLambda
+        - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+        - ''
+        - - 'arn:aws:execute-api:'
+          - Ref: AWS::Region
+          - ":"
+          - Ref: AWS::AccountId
+          - ":"
+          - Ref: RaiAPI
+          - "/*"
+  
+  LSLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:invokeFunction
+      FunctionName:
+        Fn::GetAtt:
+        - LSLambda
+        - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+        - ''
+        - - 'arn:aws:execute-api:'
+          - Ref: AWS::Region
+          - ":"
+          - Ref: AWS::AccountId
+          - ":"
+          - Ref: RaiAPI
+          - "/*"
+            
+  UsagePlan:
+    Type: "AWS::ApiGateway::UsagePlan"
+    Properties:
+      Description: "Rai"
+      Quota:
+        Limit: 5000
+        Period: MONTH
+      Throttle:
+        BurstLimit: 5
+        RateLimit: 2
+      UsagePlanName: UsagePlan
+            
+  RaiAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: Rai API
+      Description: API used for Rai
+      FailOnWarnings: true
+          
+  ApiStage:
+    DependsOn:
+    - ApiGatewayAccount
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId:
+        Ref: ApiDeployment
+      MethodSettings:
+      - DataTraceEnabled: true
+        HttpMethod: "*"
+        LoggingLevel: INFO
+        ResourcePath: "/*"
+      RestApiId:
+        Ref: RaiAPI
+      StageName: LATEST
+      
+  ApiGatewayCloudWatchLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - apigateway.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: ApiGatewayLogsPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:DescribeLogGroups
+            - logs:DescribeLogStreams
+            - logs:PutLogEvents
+            - logs:GetLogEvents
+            - logs:FilterLogEvents
+            Resource: "*"
+            
+  ApiGatewayAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+        - ApiGatewayCloudWatchLogsRole
+        - Arn
+        
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+    - LSRequest
+    Properties:
+      RestApiId:
+        Ref: RaiAPI
+      StageName: DummyStage
+      
+  DomainName:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      DomainName: api.rai.mayhew.io
+      CertificateArn: !Ref certificateARN
+      
+  DomainMapping:
+    Type: 'AWS::ApiGateway::BasePathMapping'
+    Properties:
+      BasePath: ""
+      DomainName: !Ref DomainName
+      RestApiId: !Ref RaiAPI
+      
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: mayhew.io.
+      Comment: RAI API
+      Name: "api.rai.mayhew.io"
+      Type: CNAME
+      TTL: '300'
+      ResourceRecords:
+      - Fn::Join:
+        - ''
+        - - Ref: RaiAPI
+          - ".execute-api."
+          - Ref: AWS::Region
+          - ".amazonaws.com."
+      
+  LSLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          var exec = require('child_process').exec;
+          exports.handler = function index(event, context, callback) {
+            const exec = require('child_process').exec;
+
+            exec('ls -lah', (error, stdout, stderr) => {
+              if (error) {
+                console.log("Error occured");
+                console.error(error);
+                return;
+              }
+              context.succeed({success:stdout});
+            });
+          };
+      Description: ls -lah
+      FunctionName: rai-ls
+      Handler: index.handler
+      MemorySize: 128
+      Role:
+        Fn::GetAtt:
+        - LambdaExecutionRole
+        - Arn
+      Runtime: nodejs6.10
+      Timeout: 1
+
+  BTCLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          var exec = require('child_process').exec;
+          exports.handler = function index(event, context, callback) {
+            const exec = require('child_process').exec;
+
+            exec('curl -sSL https://coinbase.com/api/v1/prices/historical | head -n 1 | sed "s|^.*,|$|" | sed "s|\(\.[0-9]$\)|\10|" | sed "s/[^0-9.]//g"', (error, stdout, stderr) => {
+              if (error) {
+                console.log("Error occured");
+                console.error(error);
+                return;
+              }
+              context.succeed({success:stdout});
+            });
+          };
+      Description: Return btc price in USD
+      FunctionName: rai-btc
+      Handler: index.handler
+      MemorySize: 128
+      Role:
+        Fn::GetAtt:
+        - LambdaExecutionRole
+        - Arn
+      Runtime: nodejs6.10
+      Timeout: 3
+  
+  ETHLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          var exec = require('child_process').exec;
+          exports.handler = function index(event, context, callback) {
+            const exec = require('child_process').exec;
+
+            exec('curl -s https://coinmarketcap-nexuist.rhcloud.com/api/eth | head -n 1 | sed "s/.*price/price/g" | sed \'s/price":{"usd"://\' | head -c 6 | sed "s/[^0-9.]//g"', (error, stdout, stderr) => {
+              if (error) {
+                console.log("Error occured");
+                console.error(error);
+                return;
+              }
+              context.succeed({success:stdout});
+            });
+          };
+      Description: Return ether price in USD
+      FunctionName: rai-eth
+      Handler: index.handler
+      MemorySize: 128
+      Role:
+        Fn::GetAtt:
+        - LambdaExecutionRole
+        - Arn
+      Runtime: nodejs6.10
+      Timeout: 3
+  
+  BTCResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Ref: RaiAPI
+      ParentId:
+        Fn::GetAtt:
+        - RaiAPI
+        - RootResourceId
+      PathPart: btc
+  
+  ETHResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Ref: RaiAPI
+      ParentId:
+        Fn::GetAtt:
+        - RaiAPI
+        - RootResourceId
+      PathPart: eth
+  
+  LSResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Ref: RaiAPI
+      ParentId:
+        Fn::GetAtt:
+        - RaiAPI
+        - RootResourceId
+      PathPart: ls
+  
+  BTCRequest:
+    DependsOn: BTCLambdaPermission
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: GET
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri:
+          Fn::Join:
+          - ''
+          - - 'arn:aws:apigateway:'
+            - Ref: AWS::Region
+            - ":lambda:path/2015-03-31/functions/"
+            - Fn::GetAtt:
+              - BTCLambda
+              - Arn
+            - "/invocations"
+        IntegrationResponses:
+        - StatusCode: 200
+        RequestTemplates:
+          application/json:
+            Fn::Join:
+            - ''
+            - - "{"
+              - '"name": "$input.params(''name'')"'
+              - "}"
+      RequestParameters:
+        method.request.querystring.name: false
+      ResourceId:
+        Ref: BTCResource
+      RestApiId:
+        Ref: RaiAPI
+      MethodResponses:
+      - StatusCode: 200
+      
+  ETHRequest:
+    DependsOn: ETHLambdaPermission
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: GET
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri:
+          Fn::Join:
+          - ''
+          - - 'arn:aws:apigateway:'
+            - Ref: AWS::Region
+            - ":lambda:path/2015-03-31/functions/"
+            - Fn::GetAtt:
+              - ETHLambda
+              - Arn
+            - "/invocations"
+        IntegrationResponses:
+        - StatusCode: 200
+        RequestTemplates:
+          application/json:
+            Fn::Join:
+            - ''
+            - - "{"
+              - '"name": "$input.params(''name'')"'
+              - "}"
+      RequestParameters:
+        method.request.querystring.name: false
+      ResourceId:
+        Ref: ETHResource
+      RestApiId:
+        Ref: RaiAPI
+      MethodResponses:
+      - StatusCode: 200
+     
+  LSRequest:
+    DependsOn: LSLambdaPermission
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: GET
+      Integration:
+        Type: AWS
+        IntegrationHttpMethod: POST
+        Uri:
+          Fn::Join:
+          - ''
+          - - 'arn:aws:apigateway:'
+            - Ref: AWS::Region
+            - ":lambda:path/2015-03-31/functions/"
+            - Fn::GetAtt:
+              - LSLambda
+              - Arn
+            - "/invocations"
+        IntegrationResponses:
+        - StatusCode: 200
+        RequestTemplates:
+          application/json:
+            Fn::Join:
+            - ''
+            - - "{"
+              - '"name": "$input.params(''name'')"'
+              - "}"
+      RequestParameters:
+        method.request.querystring.name: false
+      ResourceId:
+        Ref: LSResource
+      RestApiId:
+        Ref: RaiAPI
+      MethodResponses:
+      - StatusCode: 200
+
+Outputs:
+
+  APIURL:
+    Description: The invoke url of the api
+    Value:
+      Fn::Join:
+      - ''
+      - - "https://"
+        - Ref: RaiAPI
+        - ".execute-api."
+        - Ref: AWS::Region
+        - ".amazonaws.com/LATEST"
