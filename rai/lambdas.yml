@@ -185,7 +185,7 @@ Resources:
       DomainName: !Ref DomainName
       RestApiId: !Ref RaiAPI
       
-  DNSRecord:
+  APIDNSRecord:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneName: mayhew.io.
@@ -200,7 +200,18 @@ Resources:
           - ".execute-api."
           - Ref: AWS::Region
           - ".amazonaws.com."
-      
+  
+  RAIDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: mayhew.io.
+      Comment: RAI API
+      Name: "rai.mayhew.io"
+      Type: CNAME
+      TTL: '300'
+      ResourceRecords:
+      - "rai.mayhew.io.s3-website.eu-west-2.amazonaws.com"
+  
   LSLambda:
     Type: AWS::Lambda::Function
     Properties:

@@ -155,9 +155,9 @@ $('textarea').keydown(function(e) {
 		$('<div id="'+processId+'" class="details"></div>').html('<pre>Processing...</pre>').prependTo( "#results");
 		
         $.ajax({
-		  type: "POST",
-		  data: {'pid':processId, 'command': commands[commands.length-1]},
-          url: 'commands.php',
+		  type: "GET",
+		  data: {'pid':processId},
+          url: 'http://api.rai.mayhew.io/'+commands[commands.length-1],
           context: document.body,
 		  dataType: 'json'
         }).done(function(data) {
