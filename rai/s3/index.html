@@ -82,7 +82,7 @@ setInterval(function() {
       $('#connectionstatus').html('Disconnected').addClass('warn').removeClass('ok');
     }, 500);
     $.ajax({
-      url: 'status.php',
+      url: 'index.html',
       context: document.body
     }).done(function() {
       clearTimeout(connectionStatusIntervalTimer);
