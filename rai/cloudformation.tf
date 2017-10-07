@@ -4,6 +4,7 @@ provider "aws" {
 
 resource "aws_s3_bucket_object" "index" {
   bucket = "rai.mayhew.io"
+  content_type = "text/html"
   key    = "index.html"
   source = "s3/index.html"
   etag   = "${md5(file("s3/index.html"))}"

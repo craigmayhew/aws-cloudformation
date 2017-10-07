@@ -3,8 +3,6 @@
 <head>
 <title>Rai</title>
 <meta charset="UTF-8">
-<link src="c.css" title="Styles" type="text/css">
-<link src="j.js" title="Script" type="text/javascript">
 <link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet">
 <style>
 body {
@@ -143,28 +141,28 @@ $('textarea').click(function(e) {
 $('textarea').keyup(function(e) {
     if (e.keyCode == 37 || e.keyCode == 38 || e.keyCode == 39 || e.keyCode == 40) {
       gotoend();
-	}
+    }
 });
 $('textarea').keydown(function(e) {
     if (e.keyCode == 13) {
-	    e.preventDefault();
+        e.preventDefault();
         var commands = $('textarea').val().split('[craig@rai ~]# ');
         
-		var processId = Math.ceil(Math.random() * 100000000);
-		
-		$('<div id="'+processId+'" class="details"></div>').html('<pre>Processing...</pre>').prependTo( "#results");
-		
+        var processId = Math.ceil(Math.random() * 100000000);
+        
+        $('<div id="'+processId+'" class="details"></div>').html('<pre>Processing...</pre>').prependTo( "#results");
+        
         $.ajax({
-		  type: "GET",
-		  data: {'pid':processId},
-          url: 'http://api.rai.mayhew.io/'+commands[commands.length-1],
+          type: "GET",
+          data: {'pid':processId},
+          url: 'https://api.rai.mayhew.io/LATEST/'+commands[commands.length-1],
           context: document.body,
-		  dataType: 'json'
+          dataType: 'json'
         }).done(function(data) {
           $('#'+data.pid).html('<pre>'+data.data+'</pre>');
         });
-		
-		$('textarea').val($('textarea').val()+"\n"+'[craig@rai ~]# ');
+        
+        $('textarea').val($('textarea').val()+"\n"+'[craig@rai ~]# ');
         $('textarea').scrollTop($('textarea')[0].scrollHeight);
     }
 });

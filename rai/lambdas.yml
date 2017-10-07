@@ -50,7 +50,7 @@ Resources:
           - Ref: AWS::AccountId
           - ":"
           - Ref: RaiAPI
-          - "/*"
+          - "/*/GET/btc"
   
   ETHLambdaPermission:
     Type: AWS::Lambda::Permission
@@ -70,7 +70,7 @@ Resources:
           - Ref: AWS::AccountId
           - ":"
           - Ref: RaiAPI
-          - "/*"
+          - "/*/GET/eth"
   
   LSLambdaPermission:
     Type: AWS::Lambda::Permission
@@ -90,7 +90,7 @@ Resources:
           - Ref: AWS::AccountId
           - ":"
           - Ref: RaiAPI
-          - "/*"
+          - "/*/GET/ls"
             
   UsagePlan:
     Type: "AWS::ApiGateway::UsagePlan"
@@ -227,7 +227,7 @@ Resources:
                 console.error(error);
                 return;
               }
-              context.succeed({success:stdout});
+              context.succeed({data:stdout,pid:event});
             });
           };
       Description: ls -lah
@@ -256,7 +256,7 @@ Resources:
                 console.error(error);
                 return;
               }
-              context.succeed({success:stdout});
+              context.succeed({data:stdout,pid:event});
             });
           };
       Description: Return btc price in USD
@@ -285,7 +285,7 @@ Resources:
                 console.error(error);
                 return;
               }
-              context.succeed({success:stdout});
+              context.succeed({data:stdout,pid:event});
             });
           };
       Description: Return ether price in USD
@@ -353,13 +353,12 @@ Resources:
             - "/invocations"
         IntegrationResponses:
         - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+            method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+            method.response.header.Access-Control-Allow-Origin: "'*'"
         RequestTemplates:
-          application/json:
-            Fn::Join:
-            - ''
-            - - "{"
-              - '"name": "$input.params(''name'')"'
-              - "}"
+          application/json: '"$input.params(''pid'')"'
       RequestParameters:
         method.request.querystring.name: false
       ResourceId:
@@ -368,6 +367,11 @@ Resources:
         Ref: RaiAPI
       MethodResponses:
       - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Headers: true
+          method.response.header.Access-Control-Allow-Methods: true
+          method.response.header.Access-Control-Allow-Origin: true
+        
       
   ETHRequest:
     DependsOn: ETHLambdaPermission
@@ -390,13 +394,12 @@ Resources:
             - "/invocations"
         IntegrationResponses:
         - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+            method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+            method.response.header.Access-Control-Allow-Origin: "'*'"
         RequestTemplates:
-          application/json:
-            Fn::Join:
-            - ''
-            - - "{"
-              - '"name": "$input.params(''name'')"'
-              - "}"
+          application/json: '"$input.params(''pid'')"'
       RequestParameters:
         method.request.querystring.name: false
       ResourceId:
@@ -405,6 +408,10 @@ Resources:
         Ref: RaiAPI
       MethodResponses:
       - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Headers: true
+          method.response.header.Access-Control-Allow-Methods: true
+          method.response.header.Access-Control-Allow-Origin: true
      
   LSRequest:
     DependsOn: LSLambdaPermission
@@ -427,13 +434,12 @@ Resources:
             - "/invocations"
         IntegrationResponses:
         - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+            method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+            method.response.header.Access-Control-Allow-Origin: "'*'"
         RequestTemplates:
-          application/json:
-            Fn::Join:
-            - ''
-            - - "{"
-              - '"name": "$input.params(''name'')"'
-              - "}"
+          application/json: '"$input.params(''pid'')"'
       RequestParameters:
         method.request.querystring.name: false
       ResourceId:
@@ -442,6 +448,10 @@ Resources:
         Ref: RaiAPI
       MethodResponses:
       - StatusCode: 200
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Headers: true
+          method.response.header.Access-Control-Allow-Methods: true
+          method.response.header.Access-Control-Allow-Origin: true
 
 Outputs:
 
