@@ -13,23 +13,6 @@ Resources:
       - Endpoint:
           Ref: Email
         Protocol: email
-  100dollarsAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      ActionsEnabled: true
-      AlarmActions:
-      - Ref: NotifyMe
-      AlarmDescription: Alert when we spend money!
-      ComparisonOperator: GreaterThanThreshold
-      Dimensions:
-      - Name: Currency
-        Value: USD
-      EvaluationPeriods: '3'
-      MetricName: EstimatedCharges
-      Namespace: AWS/Billing
-      Period: '3600'
-      Statistic: Maximum
-      Threshold: '100'
   200dollarsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
