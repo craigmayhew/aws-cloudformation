@@ -121,7 +121,7 @@ setInterval(function() {
   
   
   
-[user@rai ~]# </textarea>
+[user@terminal ~]# </textarea>
 </article>
 <div id="results"></div>
 </content>
@@ -146,7 +146,7 @@ $('textarea').keyup(function(e) {
 $('textarea').keydown(function(e) {
     if (e.keyCode == 13) {
         e.preventDefault();
-        var commands = $('textarea').val().split('[user@rai ~]# ');
+        var commands = $('textarea').val().split('[user@terminal ~]# ');
         
         var processId = Math.ceil(Math.random() * 100000000);
         
@@ -155,14 +155,14 @@ $('textarea').keydown(function(e) {
         $.ajax({
           type: "GET",
           data: {'pid':processId},
-          url: 'https://api.rai.mayhew.io/LATEST/'+commands[commands.length-1],
+          url: 'https://api.terminalwindow.io/LATEST/'+commands[commands.length-1],
           context: document.body,
           dataType: 'json'
         }).done(function(data) {
           $('#'+data.pid).html('<pre>'+data.data+'</pre>');
         });
         
-        $('textarea').val($('textarea').val()+"\n"+'[user@rai ~]# ');
+        $('textarea').val($('textarea').val()+"\n"+'[user@terminal ~]# ');
         $('textarea').scrollTop($('textarea')[0].scrollHeight);
     }
 });

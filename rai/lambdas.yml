@@ -1,10 +1,10 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Generate aws lambdas to perform shell commands for rai gui
+Description: Generate aws lambdas to perform shell commands for gui
 Parameters:
   certificateARN:
     Default: arn:aws:acm:us-east-1:902420391845:certificate/eb2693d6-fe4a-4f9f-8ce5-d09ae037e627
-    Description: certificate for api.rai.mayhew.io
+    Description: certificate for terminalwindow.io
     Type: String
 
 Resources:
@@ -175,7 +175,7 @@ Resources:
   DomainName:
     Type: AWS::ApiGateway::DomainName
     Properties:
-      DomainName: api.rai.mayhew.io
+      DomainName: api.terminalwindow.io
       CertificateArn: !Ref certificateARN
       
   DomainMapping:
@@ -188,9 +188,9 @@ Resources:
   APIDNSRecord:
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneName: mayhew.io.
+      HostedZoneName: terminalwindow.io.
       Comment: RAI API
-      Name: "api.rai.mayhew.io"
+      Name: "api.terminalwindow.io"
       Type: CNAME
       TTL: '300'
       ResourceRecords:
@@ -204,13 +204,13 @@ Resources:
   RAIDNSRecord:
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneName: mayhew.io.
+      HostedZoneName: terminalwindow.io.
       Comment: RAI API
-      Name: "rai.mayhew.io"
+      Name: "terminalwindow.io"
       Type: CNAME
       TTL: '300'
       ResourceRecords:
-      - "rai.mayhew.io.s3-website.eu-west-2.amazonaws.com"
+      - "terminalwindow.io.s3-website.eu-west-2.amazonaws.com"
   
   LSLambda:
     Type: AWS::Lambda::Function

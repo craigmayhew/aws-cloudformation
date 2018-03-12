@@ -3,16 +3,16 @@ provider "aws" {
 }
 
 resource "aws_s3_bucket_object" "index" {
-  bucket = "rai.mayhew.io"
+  bucket = "terminalwindow.io"
   content_type = "text/html"
   key    = "index.html"
   source = "s3/index.html"
   etag   = "${md5(file("s3/index.html"))}"
 }
 
-resource "aws_cloudformation_stack" "rai_Lambdas" {
+resource "aws_cloudformation_stack" "terminalwindow_Lambdas" {
   capabilities = ["CAPABILITY_IAM"]
-  name = "Rai-lambdas"
+  name = "terminalwindow-lambdas"
   on_failure = "DELETE"
   template_body = "${ file("lambdas.yml") }"
 }
