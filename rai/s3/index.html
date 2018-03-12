@@ -62,34 +62,6 @@ progress[value]::-webkit-progress-bar {
 }
 </style>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-<script>
-var counter = 0;
-var connectionStatusIntervalTimer;
-setInterval(function() {
-    //count how long our session has been active
-    counter++;
-    seconds = (counter%60);
-    minutes = (counter - seconds) / 60;
-    seconds = seconds<10 ? '0'+seconds : seconds;
-    $('#sessionLen').html(minutes+'m '+seconds+'s');
-    
-    //update the time
-    var timestamp = Math.floor(Date.now() / 1000);
-    $('time').html(timestamp);
-    
-    //check for connectivity to internet
-    connectionStatusIntervalTimer = setTimeout(function() {
-      $('#connectionstatus').html('Disconnected').addClass('warn').removeClass('ok');
-    }, 500);
-    $.ajax({
-      url: 'index.html',
-      context: document.body
-    }).done(function() {
-      clearTimeout(connectionStatusIntervalTimer);
-      $('#connectionstatus').html('&nbsp; &nbsp;Connected').addClass('ok').removeClass('warn');
-    });
-}, 1000);
-</script>
 </head>
 <body>
 <header>
@@ -97,7 +69,7 @@ setInterval(function() {
 <content>
 <section>
   <time>0000000000</time>
-  <div><span id="connectionstatus" class="warn">&nbsp; Connecting</span>: <span id="sessionLen">0m 00s</span></div>
+  <div><span id="connectionstatus" class="warn"> </span> <span id="sessionLen"> </span></div>
 </section>
 <article>
   <textarea>
