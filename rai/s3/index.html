@@ -121,7 +121,7 @@ setInterval(function() {
   
   
   
-[craig@rai ~]# </textarea>
+[user@rai ~]# </textarea>
 </article>
 <div id="results"></div>
 </content>
@@ -146,7 +146,7 @@ $('textarea').keyup(function(e) {
 $('textarea').keydown(function(e) {
     if (e.keyCode == 13) {
         e.preventDefault();
-        var commands = $('textarea').val().split('[craig@rai ~]# ');
+        var commands = $('textarea').val().split('[user@rai ~]# ');
         
         var processId = Math.ceil(Math.random() * 100000000);
         
@@ -162,7 +162,7 @@ $('textarea').keydown(function(e) {
           $('#'+data.pid).html('<pre>'+data.data+'</pre>');
         });
         
-        $('textarea').val($('textarea').val()+"\n"+'[craig@rai ~]# ');
+        $('textarea').val($('textarea').val()+"\n"+'[user@rai ~]# ');
         $('textarea').scrollTop($('textarea')[0].scrollHeight);
     }
 });
