@@ -87,43 +87,40 @@ progress[value]::-webkit-progress-bar {
 <footer>
 </footer>
 <script>
-var gotoend = function () {
-  var val = $('textarea').val();
-  $('textarea').val("");
-  $('textarea').val(val);
-  $('textarea').scrollTop($('textarea')[0].scrollHeight);
-}
-$('textarea').click(function(e) {
-  gotoend();
-});
-$('textarea').keyup(function(e) {
+  var SIGNATURE = '[user@terminal ~]# ';
+  var gotoend = function () {
+    var val = $('textarea').val();
+    $('textarea').val("");
+    $('textarea').val(val);
+    $('textarea').scrollTop($('textarea')[0].scrollHeight);
+  }
+  $('textarea').click(function(e) {
+    gotoend();
+  });
+  $('textarea').keyup(function(e) {
     if (e.keyCode == 37 || e.keyCode == 38 || e.keyCode == 39 || e.keyCode == 40) {
       gotoend();
     }
-});
-$('textarea').keydown(function(e) {
+  });
+  $('textarea').keydown(function(e) {
     if (e.keyCode == 13) {
         e.preventDefault();
-        var commands = $('textarea').val().split('[user@terminal ~]# ');
-        
-        var processId = Math.ceil(Math.random() * 100000000);
-        
-        $('<div id="'+processId+'" class="details"></div>').html('<pre>Processing...</pre>').prependTo( "#results");
+        var commands = $('textarea').val().split(SIGNATURE);
         
         $.ajax({
           type: "GET",
-          data: {'pid':processId},
+          data: {},
           url: 'https://api.terminalwindow.io/LATEST/'+commands[commands.length-1],
           context: document.body,
           dataType: 'json'
         }).done(function(data) {
-          $('#'+data.pid).html('<pre>'+data.data+'</pre>');
+            $('textarea').val($('textarea').val()+"\n"+data.data+"\n"+SIGNATURE).prop('disabled', false);
+            $('textarea').scrollTop($('textarea')[0].scrollHeight);
         });
-        
-        $('textarea').val($('textarea').val()+"\n"+'[user@terminal ~]# ');
-        $('textarea').scrollTop($('textarea')[0].scrollHeight);
+
+        $('textarea').prop('disabled', true);
     }
-});
+  });
 </script>
 </body>
 </html>
