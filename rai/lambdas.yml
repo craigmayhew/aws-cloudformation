@@ -200,17 +200,17 @@ Resources:
           - ".execute-api."
           - Ref: AWS::Region
           - ".amazonaws.com."
-  
-  RAIDNSRecord:
+
+  DNSRecord:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneName: terminalwindow.io.
-      Comment: RAI API
       Name: "terminalwindow.io"
-      Type: CNAME
-      TTL: '300'
-      ResourceRecords:
-      - "terminalwindow.io.s3-website.eu-west-2.amazonaws.com"
+      Type: A
+      AliasTarget:
+        EvaluateTargetHealth: false
+        HostedZoneId: Z3GKZC51ZF0DB4
+        DNSName: "s3-website.eu-west-2.amazonaws.com"
   
   LSLambda:
     Type: AWS::Lambda::Function
