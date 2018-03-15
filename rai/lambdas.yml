@@ -3,7 +3,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Generate aws lambdas to perform shell commands for gui
 Parameters:
   certificateARN:
-    Default: arn:aws:acm:us-east-1:902420391845:certificate/eb2693d6-fe4a-4f9f-8ce5-d09ae037e627
+    Default: arn:aws:acm:us-east-1:902420391845:certificate/45efe34a-3b42-43b8-9fbb-d2f21fde7d25
     Description: certificate for terminalwindow.io
     Type: String
 
