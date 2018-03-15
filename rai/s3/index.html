@@ -127,7 +127,7 @@ $('textarea').keydown(function(e) {
         $.ajax({
           type: "GET",
           data: {'pid':processId},
-          url: 'https://api.terminalwindow.io/LATEST/'+commands[commands.length-1],
+          url: '//api.terminalwindow.io/LATEST/'+commands[commands.length-1],
           context: document.body,
           dataType: 'json'
         }).done(function(data) {
