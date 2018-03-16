@@ -102,11 +102,12 @@ progress[value]::-webkit-progress-bar {
         var commands = $('textarea').val().split(SIGNATURE);
         
         $.ajax({
-          type: "GET",
-          data: {},
-          url: 'https://api.terminalwindow.io/LATEST/'+commands[commands.length-1],
-          context: document.body,
-          dataType: 'json'
+            context: document.body,
+            dataType: 'json',
+            data: {},
+            timeout: 3000,
+            type: "GET",
+            url: 'https://api.terminalwindow.io/LATEST/'+commands[commands.length-1]
         }).done(function(data) {
             $('textarea')
                 .val($('textarea').val()+"\n"+data.data+"\n"+SIGNATURE)
