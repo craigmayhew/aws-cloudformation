@@ -101,23 +101,27 @@ progress[value]::-webkit-progress-bar {
     if (e.keyCode == 13) {
         e.preventDefault();
         var commands = $('textarea').val().split(SIGNATURE);
-        
-        $.ajax({
-            context: document.body,
-            dataType: 'json',
-            data: {},
-            timeout: 3000,
-            type: "GET",
-            url: 'https://api.terminalwindow.io/LATEST/'+commands[commands.length-1]
-        }).done(function(data) {
-            $('textarea')
-                .val($('textarea').val()+"\n"+data.data+"\n"+SIGNATURE)
-                .prop('disabled', false)
-                .scrollTop($('textarea')[0].scrollHeight)
-                .focus();
-        });
 
-        $('textarea').prop('disabled', true);
+        try {
+            $.ajax({
+                context: document.body,
+                dataType: 'json',
+                data: {},
+                timeout: 3000,
+                type: "GET",
+                url: 'https://api.terminalwindow.io/LATEST/' + commands[commands.length - 1]
+            }).done(function (data) {
+                $('textarea')
+                    .val($('textarea').val() + "\n" + data.data + "\n" + SIGNATURE)
+                    .prop('disabled', false)
+                    .scrollTop($('textarea')[0].scrollHeight)
+                    .focus();
+            });
+            $('textarea').prop('disabled', true);
+        } catch (e) {
+            gotoend();
+        }
+
     }
   });
 </script>
