@@ -108,8 +108,11 @@ progress[value]::-webkit-progress-bar {
           context: document.body,
           dataType: 'json'
         }).done(function(data) {
-            $('textarea').val($('textarea').val()+"\n"+data.data+"\n"+SIGNATURE).prop('disabled', false);
-            $('textarea').scrollTop($('textarea')[0].scrollHeight);
+            $('textarea')
+                .val($('textarea').val()+"\n"+data.data+"\n"+SIGNATURE)
+                .prop('disabled', false)
+                .scrollTop($('textarea')[0].scrollHeight)
+                .focus();
         });
 
         $('textarea').prop('disabled', true);
