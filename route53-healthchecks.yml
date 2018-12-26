@@ -44,23 +44,6 @@ Resources:
         Value:
           Ref: AWS::StackName
 
-  awsLabelManHealthCheck:
-    Type: AWS::Route53::HealthCheck
-    Properties:
-      HealthCheckConfig:
-        Port: '443'
-        Type: HTTPS
-        ResourcePath: "/"
-        FullyQualifiedDomainName: thelabelman.co.uk
-        RequestInterval: '30'
-        FailureThreshold: '3'
-      HealthCheckTags:
-      - Key: Application
-        Value:
-          Ref: AWS::StackName
-      - Key: Name
-        Value: https://thelabelman.co.uk
-
   awsTAWHealthCheck:
     Type: AWS::Route53::HealthCheck
     Properties:
@@ -75,25 +58,6 @@ Resources:
       - Key: Application
         Value:
           Ref: AWS::StackName
-
-  awsLabelManAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      ActionsEnabled: true
-      AlarmActions:
-      - Ref: NotifyMe
-      AlarmDescription: Alert when Labelman SSL is down
-      ComparisonOperator: LessThanThreshold
-      Dimensions:
-      - Name: HealthCheckId
-        Value:
-          Ref: awsLabelManHealthCheck
-      EvaluationPeriods: '3'
-      MetricName: HealthCheckStatus
-      Namespace: AWS/Route53
-      Period: '60'
-      Statistic: Minimum
-      Threshold: '1'
 
   awsBethaneyAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -113,32 +77,3 @@ Resources:
       Period: '60'
       Statistic: Minimum
       Threshold: '1'
-
-  emailsrvrHealthCheck:
-    Type: AWS::Route53::HealthCheck
-    Properties:
-      HealthCheckConfig:
-        Port: '993'
-        Type: TCP
-        FullyQualifiedDomainName: secure.emailsrvr.com
-        RequestInterval: '30'
-        FailureThreshold: '3'
-      HealthCheckTags:
-      - Key: Application
-        Value:
-          Ref: AWS::StackName
-
-  awsAdireHealthCheck:
-    Type: AWS::Route53::HealthCheck
-    Properties:
-      HealthCheckConfig:
-        Port: '80'
-        Type: HTTP
-        ResourcePath: "/"
-        FullyQualifiedDomainName: adire.co.uk
-        RequestInterval: '30'
-        FailureThreshold: '3'
-      HealthCheckTags:
-      - Key: Application
-        Value:
-          Ref: AWS::StackName
