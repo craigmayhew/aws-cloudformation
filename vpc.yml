@@ -44,7 +44,10 @@ Resources:
       EnableDnsHostnames: true
       EnableDnsSupport: true
       InstanceTenancy: default
-      Tags: [Name: !Ref Name]
+      Tags:
+        -
+          Key: "Name"
+          Value: !Ref Name
 
   IG:
     Type: "AWS::EC2::InternetGateway"
