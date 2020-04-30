@@ -112,4 +112,36 @@ Resources:
       Statistic: Minimum
       Threshold: '1'
   
+  awsMTCHealthCheck:
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        Port: '443'
+        Type: HTTPS
+        ResourcePath: "/"
+        FullyQualifiedDomainName: www.modeltraincatalogue.com
+        RequestInterval: '30'
+        FailureThreshold: '3'
+      HealthCheckTags:
+      - Key: Application
+        Value:
+          Ref: AWS::StackName
+
+  awsMTCAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmActions:
+      - Ref: NotifyMe
+      AlarmDescription: Alert when MTC is down
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+      - Name: HealthCheckId
+        Value:
+          Ref: awsMTCHealthCheck
+      EvaluationPeriods: '3'
+      MetricName: HealthCheckStatus
+      Namespace: AWS/Route53
+      Period: '60'
+      Statistic: Minimum
       Threshold: '1'
