@@ -14,21 +14,6 @@ Resources:
           Ref: Email
         Protocol: email
 
-  awsBethaneyHealthCheck:
-    Type: AWS::Route53::HealthCheck
-    Properties:
-      HealthCheckConfig:
-        Port: '80'
-        Type: HTTP
-        ResourcePath: "/blog/"
-        FullyQualifiedDomainName: www.bethaney.co.uk
-        RequestInterval: '30'
-        FailureThreshold: '3'
-      HealthCheckTags:
-      - Key: Application
-        Value:
-          Ref: AWS::StackName
-
   awsCraigHealthCheck:
     Type: AWS::Route53::HealthCheck
     Properties:
@@ -44,33 +29,18 @@ Resources:
         Value:
           Ref: AWS::StackName
 
-  awsTAWHealthCheck:
-    Type: AWS::Route53::HealthCheck
-    Properties:
-      HealthCheckConfig:
-        Port: '443'
-        Type: HTTPS
-        ResourcePath: "/"
-        FullyQualifiedDomainName: take-a-way.co.uk
-        RequestInterval: '30'
-        FailureThreshold: '3'
-      HealthCheckTags:
-      - Key: Application
-        Value:
-          Ref: AWS::StackName
-
-  awsBethaneyAlarm:
+  awsCraigAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       ActionsEnabled: true
       AlarmActions:
       - Ref: NotifyMe
-      AlarmDescription: Alert when Beth's blog is down
+      AlarmDescription: Alert when craig's website is down
       ComparisonOperator: LessThanThreshold
       Dimensions:
       - Name: HealthCheckId
         Value:
-          Ref: awsBethaneyHealthCheck
+          Ref: awsCraigHealthCheck
       EvaluationPeriods: '3'
       MetricName: HealthCheckStatus
       Namespace: AWS/Route53
@@ -78,70 +48,3 @@ Resources:
       Statistic: Minimum
       Threshold: '1'
   
-  awsStudioJHealthCheck:
-    Type: AWS::Route53::HealthCheck
-    Properties:
-      HealthCheckConfig:
-        Port: '443'
-        Type: HTTPS
-        ResourcePath: "/"
-        FullyQualifiedDomainName: studio-j.co.uk
-        RequestInterval: '30'
-        FailureThreshold: '3'
-      HealthCheckTags:
-      - Key: Application
-        Value:
-          Ref: AWS::StackName
-
-  awsStudioJAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      ActionsEnabled: true
-      AlarmActions:
-      - Ref: NotifyMe
-      AlarmDescription: Alert when StudioJ is down
-      ComparisonOperator: LessThanThreshold
-      Dimensions:
-      - Name: HealthCheckId
-        Value:
-          Ref: awsStudioJHealthCheck
-      EvaluationPeriods: '3'
-      MetricName: HealthCheckStatus
-      Namespace: AWS/Route53
-      Period: '60'
-      Statistic: Minimum
-      Threshold: '1'
-  
-  awsMTCHealthCheck:
-    Type: AWS::Route53::HealthCheck
-    Properties:
-      HealthCheckConfig:
-        Port: '443'
-        Type: HTTPS
-        ResourcePath: "/"
-        FullyQualifiedDomainName: www.modeltraincatalogue.com
-        RequestInterval: '30'
-        FailureThreshold: '3'
-      HealthCheckTags:
-      - Key: Application
-        Value:
-          Ref: AWS::StackName
-
-  awsMTCAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      ActionsEnabled: true
-      AlarmActions:
-      - Ref: NotifyMe
-      AlarmDescription: Alert when MTC is down
-      ComparisonOperator: LessThanThreshold
-      Dimensions:
-      - Name: HealthCheckId
-        Value:
-          Ref: awsMTCHealthCheck
-      EvaluationPeriods: '3'
-      MetricName: HealthCheckStatus
-      Namespace: AWS/Route53
-      Period: '60'
-      Statistic: Minimum
-      Threshold: '1'
