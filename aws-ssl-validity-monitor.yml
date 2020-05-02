@@ -5,7 +5,7 @@ Parameters:
   ParamURLs:
     Description: comma separated list of domains to check SSL valididty
     Type: String
-    Default: "player2store.com,secure.adire.co.uk,take-a-way.co.uk,thelabelman.co.uk"
+    Default: "craig.mayhew.io"
   ParamEmail:
     Description: Email to send alerts to
     Type: String
